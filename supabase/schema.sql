@@ -123,6 +123,12 @@ create table if not exists public.movie_comments (
   created_at  timestamptz not null default now()
 );
 
+alter table public.movie_comments add column if not exists user_name text;
+alter table public.movie_comments add column if not exists content text;
+alter table public.movie_comments add column if not exists parent_id uuid;
+alter table public.movie_comments add column if not exists likes integer not null default 0;
+alter table public.movie_comments add column if not exists dislikes integer not null default 0;
+
 create index if not exists idx_movie_comments_movie_id on public.movie_comments (tmdb_id);
 create index if not exists idx_movie_comments_parent_id on public.movie_comments (parent_id);
 
@@ -153,6 +159,8 @@ create table if not exists public.comment_reactions (
   primary key (comment_id, user_id)
 );
 
+alter table public.comment_reactions add column if not exists reaction text;
+
 alter table public.comment_reactions enable row level security;
 
 drop policy if exists "Users can view comment reactions" on public.comment_reactions;
@@ -172,7 +180,7 @@ create or replace function public.toggle_comment_reaction(
 )
 returns table (reaction text, likes integer, dislikes integer)
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -211,6 +219,9 @@ begin
     (select count(*)::integer from public.comment_reactions cr where cr.comment_id = p_comment_id and cr.reaction = 'dislike');
 end;
 $$;
+
+revoke all on function public.toggle_comment_reaction(uuid, text) from public;
+grant execute on function public.toggle_comment_reaction(uuid, text) to authenticated;
 
 -- ============================================================
 -- Optional, aber empfohlen: E-Mail-Bestätigung deaktivieren,

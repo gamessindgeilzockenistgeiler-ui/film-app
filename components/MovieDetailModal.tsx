@@ -98,7 +98,7 @@ export default function MovieDetailModal({
         .order('created_at', { ascending: true });
 
       if (error) {
-        setCommentError('Kommentare konnten nicht geladen werden.');
+        setCommentError(`Kommentare konnten nicht geladen werden: ${error.message}`);
       } else {
         const allComments = (data ?? []) as Omit<MovieComment, 'replies'>[];
         const repliesByParent = new Map<string, MovieComment[]>();
@@ -122,14 +122,16 @@ export default function MovieDetailModal({
 
         const user = await getSafeUser();
         if (user && allComments.length > 0) {
-          const { data: reactionRows } = await supabase
+          const { data: reactionRows, error: reactionError } = await supabase
             .from('comment_reactions')
             .select('comment_id,reaction')
             .eq('user_id', user.id)
             .in('comment_id', allComments.map((comment) => comment.id));
-          setMyReactions(Object.fromEntries(
-            (reactionRows ?? []).map((row) => [row.comment_id, row.reaction as 'like' | 'dislike'])
-          ));
+          if (!reactionError) {
+            setMyReactions(Object.fromEntries(
+              (reactionRows ?? []).map((row) => [row.comment_id, row.reaction as 'like' | 'dislike'])
+            ));
+          }
         }
       }
 
@@ -166,7 +168,7 @@ export default function MovieDetailModal({
       .single();
 
     if (error) {
-      setCommentError('Kommentar konnte nicht gespeichert werden.');
+      setCommentError(`Kommentar konnte nicht gespeichert werden: ${error.message}`);
     } else if (data) {
       const newComment = { ...(data as Omit<MovieComment, 'replies'>), replies: [] };
       if (parentId) {
@@ -199,11 +201,19 @@ export default function MovieDetailModal({
     });
 
     if (error || !data) {
-      setCommentError('Reaktion konnte nicht gespeichert werden.');
+      setCommentError(`Reaktion konnte nicht gespeichert werden: ${error?.message ?? 'Keine Antwort von Supabase'}`);
       return;
     }
 
-    const result = data as { reaction: 'like' | 'dislike' | null; likes: number; dislikes: number };
+    const result = (Array.isArray(data) ? data[0] : data) as {
+      reaction: 'like' | 'dislike' | null;
+      likes: number;
+      dislikes: number;
+    };
+    if (!result) {
+      setCommentError('Reaktion konnte nicht gespeichert werden: Ungültige RPC-Antwort');
+      return;
+    }
     setMyReactions((current) => {
       const next = { ...current };
       if (result.reaction) next[commentId] = result.reaction;
