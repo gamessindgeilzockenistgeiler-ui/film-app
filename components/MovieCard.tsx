@@ -19,6 +19,9 @@ export default function MovieCard({
   onSelectMovie: () => void;
 }) {
   const poster = posterUrl(movie.poster_path, 'w500');
+  const isUpcoming = Boolean(
+    movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+  ) || Boolean(movie.release_year && movie.release_year > new Date().getFullYear());
 
   return (
     <div
@@ -68,14 +71,14 @@ export default function MovieCard({
             e.stopPropagation();
             onToggleWatched(movie);
           }}
-          title={movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+          title={isUpcoming
             ? 'Noch nicht erschienen'
             : movie.is_watched ? 'Als ungesehen markieren' : 'Als gesehen markieren'}
-          aria-disabled={Boolean(movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now())}
+          aria-disabled={isUpcoming}
           className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
             movie.is_watched
               ? 'border-emerald-400 bg-emerald-500 text-white'
-              : movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+              : isUpcoming
                 ? 'cursor-not-allowed border-white/30 bg-black/50 text-white/40'
                 : 'border-white/70 bg-black/40 text-white/80 hover:border-emerald-400 hover:text-emerald-400'
           }`}
@@ -128,9 +131,12 @@ export default function MovieCard({
                   event.stopPropagation();
                   onRateMovie(movie, rating);
                 }}
+                disabled={isUpcoming}
                 aria-label={`${rating} von 10 für ${movie.title}`}
                 className={`h-6 rounded text-[10px] font-semibold transition-all ${
-                  movie.user_rating && rating <= movie.user_rating
+                  isUpcoming
+                    ? 'cursor-not-allowed bg-cinema-surface text-cinema-muted/50'
+                    : movie.user_rating && rating <= movie.user_rating
                     ? 'bg-cinema-gold text-black shadow-[0_0_8px_rgba(245,158,11,0.55)]'
                     : 'bg-cinema-surface text-cinema-muted hover:bg-cinema-accent hover:text-white'
                 }`}
@@ -154,13 +160,13 @@ export default function MovieCard({
           className={`mt-auto flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
             movie.is_watched
               ? 'bg-cinema-surface2 text-emerald-400'
-              : movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+              : isUpcoming
                 ? 'bg-cinema-surface2 text-cinema-muted'
                 : 'bg-cinema-accent/15 text-cinema-accent hover:bg-cinema-accent hover:text-white'
           }`}
         >
           <Check size={13} />
-          {movie.is_watched ? 'Gesehen ✓' : movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now() ? 'Noch nicht erschienen' : 'Als gesehen markieren'}
+          {movie.is_watched ? 'Gesehen ✓' : isUpcoming ? 'Noch nicht erschienen' : 'Als gesehen markieren'}
         </button>
       </div>
     </div>
