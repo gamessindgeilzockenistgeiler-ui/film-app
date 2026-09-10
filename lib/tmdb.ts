@@ -31,6 +31,8 @@ export interface TmdbMovieFull {
   release_date?: string;
   poster_path: string | null;
   overview: string;
+  vote_average?: number;
+  vote_count?: number;
   genres: { id: number; name: string }[];
   credits?: {
     crew: { job: string; name: string }[];

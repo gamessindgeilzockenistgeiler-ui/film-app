@@ -17,9 +17,12 @@ export async function GET() {
         return {
           tmdb_id: details.id,
           title: details.title,
+          release_date: details.release_date,
           release_year: extractYear(details.release_date),
           poster_path: details.poster_path,
           overview: details.overview,
+          vote_average: details.vote_average ?? 0,
+          vote_count: details.vote_count ?? 0,
           genres: details.genres?.map((g) => g.name) ?? [],
           director: extractDirector(details),
           is_watched: false,

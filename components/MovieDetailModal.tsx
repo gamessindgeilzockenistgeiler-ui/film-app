@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { X, Play, Users, Clapperboard } from 'lucide-react';
+import { X, Play, Users, Clapperboard, Star, ThumbsDown, ThumbsUp, MessageSquare, Send } from 'lucide-react';
 import { posterUrl } from '@/lib/posterUrl';
+import { supabase } from '@/lib/supabaseClient';
 import type { Movie } from '@/lib/types';
 
 interface CastMember {
@@ -20,9 +21,25 @@ interface StreamingProvider {
 }
 
 interface MovieDetails extends Movie {
+  release_date?: string;
+  vote_average?: number;
+  vote_count?: number;
   cast?: CastMember[];
   providers?: StreamingProvider[];
   trailer_key?: string | null;
+}
+
+interface MovieComment {
+  id: string;
+  tmdb_id: number;
+  user_id: string;
+  user_name: string;
+  content: string;
+  parent_id: string | null;
+  likes: number;
+  dislikes: number;
+  created_at: string;
+  replies: MovieComment[];
 }
 
 export default function MovieDetailModal({
@@ -35,6 +52,13 @@ export default function MovieDetailModal({
   const [details, setDetails] = useState<MovieDetails>(movie);
   const [loading, setLoading] = useState(true);
   const [showTrailer, setShowTrailer] = useState(false);
+  const [comments, setComments] = useState<MovieComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentText, setCommentText] = useState('');
+  const [replyText, setReplyText] = useState('');
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     // TMDB Details (Cast, Streaming & Trailer) nachladen
@@ -60,7 +84,127 @@ export default function MovieDetailModal({
     fetchDetails();
   }, [movie]);
 
+  useEffect(() => {
+    async function fetchComments() {
+      setCommentsLoading(true);
+      setCommentError('');
+
+      const { data, error } = await supabase
+        .from('movie_comments')
+        .select('*')
+        .eq('tmdb_id', movie.tmdb_id)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        setCommentError('Kommentare konnten nicht geladen werden.');
+      } else {
+        const allComments = (data ?? []) as Omit<MovieComment, 'replies'>[];
+        const repliesByParent = new Map<string, MovieComment[]>();
+
+        allComments.forEach((comment) => {
+          if (comment.parent_id) {
+            const replies = repliesByParent.get(comment.parent_id) ?? [];
+            replies.push({ ...comment, replies: [] });
+            repliesByParent.set(comment.parent_id, replies);
+          }
+        });
+
+        setComments(
+          allComments
+            .filter((comment) => !comment.parent_id)
+            .map((comment) => ({
+              ...comment,
+              replies: repliesByParent.get(comment.id) ?? [],
+            }))
+        );
+      }
+
+      setCommentsLoading(false);
+    }
+
+    fetchComments();
+  }, [movie.tmdb_id]);
+
+  async function submitComment(parentId: string | null = null) {
+    const content = (parentId ? replyText : commentText).trim();
+    if (!content || submittingComment) return;
+
+    setSubmittingComment(true);
+    setCommentError('');
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (!user) {
+      setCommentError('Bitte melde dich an, um zu kommentieren.');
+      setSubmittingComment(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('movie_comments')
+      .insert({
+        tmdb_id: movie.tmdb_id,
+        user_id: user.id,
+        user_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Filmfan',
+        content,
+        parent_id: parentId,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      setCommentError('Kommentar konnte nicht gespeichert werden.');
+    } else if (data) {
+      const newComment = { ...(data as Omit<MovieComment, 'replies'>), replies: [] };
+      if (parentId) {
+        setComments((current) => current.map((comment) => (
+          comment.id === parentId
+            ? { ...comment, replies: [...comment.replies, newComment] }
+            : comment
+        )));
+        setReplyText('');
+        setReplyTo(null);
+      } else {
+        setComments((current) => [...current, newComment]);
+        setCommentText('');
+      }
+    }
+
+    setSubmittingComment(false);
+  }
+
+  async function reactToComment(commentId: string, reaction: 'likes' | 'dislikes') {
+    const comment = [...comments, ...comments.flatMap((item) => item.replies)].find((item) => item.id === commentId);
+    if (!comment) return;
+
+    const { error } = await supabase
+      .from('movie_comments')
+      .update({ [reaction]: comment[reaction] + 1 })
+      .eq('id', commentId);
+
+    if (error) {
+      setCommentError('Reaktion konnte nicht gespeichert werden.');
+      return;
+    }
+
+    setComments((current) => current.map((item) => {
+      if (item.id === commentId) return { ...item, [reaction]: item[reaction] + 1 };
+      return {
+        ...item,
+        replies: item.replies.map((reply) => (
+          reply.id === commentId ? { ...reply, [reaction]: reply[reaction] + 1 } : reply
+        )),
+      };
+    }));
+  }
+
   const poster = posterUrl(details.poster_path, 'w500');
+  const releaseDate = details.release_date ? new Date(`${details.release_date}T00:00:00`) : null;
+  const isUpcoming = releaseDate ? releaseDate.getTime() > Date.now() : false;
+  const formattedReleaseDate = releaseDate
+    ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }).format(releaseDate)
+    : null;
+  const ticketSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${details.title} Kino Tickets kaufen`)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fadeIn">
@@ -110,8 +254,14 @@ export default function MovieDetailModal({
             <div className="flex flex-col flex-1 gap-3">
               <div>
                 <h3 className="text-2xl font-bold">{details.title}</h3>
-                <p className="text-sm text-cinema-muted">
-                  {details.release_year ?? '—'}{details.director ? ` · Regie: ${details.director}` : ''}
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-cinema-muted">
+                  <span>{details.release_year ?? '—'}</span>
+                  {details.vote_average !== undefined && (
+                    <span className="inline-flex items-center gap-1 text-amber-300" title={`${details.vote_count ?? 0} Bewertungen`}>
+                      <Star size={14} fill="currentColor" /> {details.vote_average.toFixed(1)}
+                    </span>
+                  )}
+                  {details.director && <span>· Regie: {details.director}</span>}
                 </p>
               </div>
 
@@ -165,6 +315,19 @@ export default function MovieDetailModal({
                 </div>
               ))}
             </div>
+          ) : isUpcoming && formattedReleaseDate ? (
+            <div className="rounded-xl border border-cinema-accent/40 bg-cinema-surface2 p-4">
+              <p className="text-sm font-semibold text-white">Demnächst im Kino</p>
+              <p className="mt-1 text-xs text-cinema-muted">Kinostart am {formattedReleaseDate}</p>
+              <a
+                href={ticketSearchUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center rounded-lg bg-cinema-accent px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-cinema-accent/80"
+              >
+                🎟️ Kino &amp; Tickets suchen
+              </a>
+            </div>
           ) : (
             <p className="text-xs text-cinema-muted">Aktuell bei keinem Flatrate-Anbieter in DE verfügbar.</p>
           )}
@@ -200,6 +363,126 @@ export default function MovieDetailModal({
             </div>
           ) : (
             <p className="text-xs text-cinema-muted">Keine Cast-Informationen verfügbar.</p>
+          )}
+        </div>
+
+        {/* Community-Diskussion */}
+        <div className="mt-6 border-t border-cinema-border pt-4">
+          <h4 className="flex items-center gap-2 text-sm font-semibold text-cinema-accent mb-3">
+            <MessageSquare size={15} /> 💬 Community-Diskussion
+          </h4>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitComment();
+            }}
+            className="flex gap-2"
+          >
+            <input
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              placeholder="Schreib etwas zum Film..."
+              maxLength={1000}
+              className="min-w-0 flex-1 rounded-lg border border-cinema-border bg-cinema-surface2 px-3 py-2 text-xs text-white outline-none placeholder:text-cinema-muted focus:border-cinema-accent"
+            />
+            <button
+              type="submit"
+              disabled={submittingComment || !commentText.trim()}
+              aria-label="Kommentar senden"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-cinema-accent text-white transition-colors hover:bg-cinema-accent/80 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Send size={15} />
+            </button>
+          </form>
+
+          {commentError && <p className="mt-2 text-xs text-red-300">{commentError}</p>}
+
+          {commentsLoading ? (
+            <p className="mt-4 text-xs text-cinema-muted">Lade Community-Diskussion...</p>
+          ) : comments.length === 0 ? (
+            <p className="mt-4 text-xs text-cinema-muted">Noch keine Kommentare. Sei der Erste!</p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {comments.map((comment) => (
+                <div key={comment.id} className="space-y-2">
+                  <div className="rounded-xl border border-cinema-border bg-cinema-surface2 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-white">{comment.user_name}</span>
+                      <time className="text-[10px] text-cinema-muted" dateTime={comment.created_at}>
+                        {new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(comment.created_at))}
+                      </time>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-cinema-muted">{comment.content}</p>
+                    <div className="mt-3 flex items-center gap-3 text-[11px] text-cinema-muted">
+                      <button type="button" onClick={() => reactToComment(comment.id, 'likes')} className="inline-flex items-center gap-1 hover:text-emerald-300">
+                        <ThumbsUp size={13} /> {comment.likes}
+                      </button>
+                      <button type="button" onClick={() => reactToComment(comment.id, 'dislikes')} className="inline-flex items-center gap-1 hover:text-red-300">
+                        <ThumbsDown size={13} /> {comment.dislikes}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+                        className="inline-flex items-center gap-1 hover:text-white"
+                      >
+                        <MessageSquare size={13} /> Antworten
+                      </button>
+                    </div>
+                    {replyTo === comment.id && (
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          submitComment(comment.id);
+                        }}
+                        className="mt-3 flex gap-2"
+                      >
+                        <input
+                          value={replyText}
+                          onChange={(event) => setReplyText(event.target.value)}
+                          placeholder="Deine Antwort..."
+                          maxLength={1000}
+                          autoFocus
+                          className="min-w-0 flex-1 rounded-lg border border-cinema-border bg-cinema-surface px-3 py-2 text-xs text-white outline-none placeholder:text-cinema-muted focus:border-cinema-accent"
+                        />
+                        <button
+                          type="submit"
+                          disabled={submittingComment || !replyText.trim()}
+                          aria-label="Antwort senden"
+                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-cinema-accent text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Send size={14} />
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                  {comment.replies.length > 0 && (
+                    <div className="ml-4 space-y-2 border-l border-cinema-border pl-3">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id} className="rounded-xl border border-cinema-border/70 bg-cinema-surface2/60 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold text-white">{reply.user_name}</span>
+                            <time className="text-[10px] text-cinema-muted" dateTime={reply.created_at}>
+                              {new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(reply.created_at))}
+                            </time>
+                          </div>
+                          <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-cinema-muted">{reply.content}</p>
+                          <div className="mt-3 flex items-center gap-3 text-[11px] text-cinema-muted">
+                            <button type="button" onClick={() => reactToComment(reply.id, 'likes')} className="inline-flex items-center gap-1 hover:text-emerald-300">
+                              <ThumbsUp size={13} /> {reply.likes}
+                            </button>
+                            <button type="button" onClick={() => reactToComment(reply.id, 'dislikes')} className="inline-flex items-center gap-1 hover:text-red-300">
+                              <ThumbsDown size={13} /> {reply.dislikes}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

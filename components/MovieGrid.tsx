@@ -10,16 +10,20 @@ import MovieCard from './MovieCard';
 import type { Movie } from '@/lib/types';
 import MovieDetailModal from './MovieDetailModal';
 
-type Filter = 'all' | 'watched' | 'unwatched';
+type Filter = 'all' | 'watched' | 'watchlist' | 'upcoming';
+type Sort = 'title' | 'rating' | 'release';
 
 interface UserMovieRow {
   tmdb_id: number;
   title: string;
+  release_date: string | null;
   release_year: number | null;
   poster_path: string | null;
   overview: string | null;
   genres: string[] | null;
   director: string | null;
+  vote_average: number | null;
+  vote_count: number | null;
   is_watched: boolean;
   is_custom: boolean;
 }
@@ -30,6 +34,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
   const [loadingClassics, setLoadingClassics] = useState(true);
   const [loadingUserData, setLoadingUserData] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<Sort>('title');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
@@ -81,11 +86,14 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       .map((r) => ({
         tmdb_id: r.tmdb_id,
         title: r.title,
+        release_date: r.release_date ?? undefined,
         release_year: r.release_year,
         poster_path: r.poster_path,
         overview: r.overview ?? '',
         genres: r.genres ?? [],
         director: r.director,
+        vote_average: r.vote_average ?? 0,
+        vote_count: r.vote_count ?? 0,
         is_watched: r.is_watched,
         is_custom: true,
       }));
@@ -95,11 +103,21 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
   const watchedCount = mergedMovies.filter((m) => m.is_watched).length;
 
-  const filteredMovies = mergedMovies.filter((m) => {
-    if (filter === 'watched') return m.is_watched;
-    if (filter === 'unwatched') return !m.is_watched;
-    return true;
-  });
+  const visibleMovies = useMemo(() => {
+    const upcoming = (movie: Movie) => Boolean(movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now());
+    const filtered = mergedMovies.filter((movie) => {
+      if (filter === 'watched') return movie.is_watched;
+      if (filter === 'watchlist') return !movie.is_watched;
+      if (filter === 'upcoming') return upcoming(movie);
+      return true;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (sort === 'title') return a.title.localeCompare(b.title, 'de', { sensitivity: 'base' });
+      if (sort === 'rating') return (b.vote_average ?? 0) - (a.vote_average ?? 0);
+      return (b.release_date ?? `${b.release_year ?? 0}-01-01`).localeCompare(a.release_date ?? `${a.release_year ?? 0}-01-01`);
+    });
+  }, [filter, mergedMovies, sort]);
 
   // 4) "Gesehen" umschalten -> Upsert in Supabase
   const handleToggleWatched = async (movie: Movie) => {
@@ -119,11 +137,14 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         {
           tmdb_id: movie.tmdb_id,
           title: movie.title,
+          release_date: movie.release_date ?? null,
           release_year: movie.release_year,
           poster_path: movie.poster_path,
           overview: movie.overview,
           genres: movie.genres,
           director: movie.director,
+          vote_average: movie.vote_average ?? 0,
+          vote_count: movie.vote_count ?? 0,
           is_watched: nextWatched,
           is_custom: movie.is_custom,
         },
@@ -135,11 +156,14 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         user_id: session.user.id,
         tmdb_id: movie.tmdb_id,
         title: movie.title,
+        release_date: movie.release_date ?? null,
         release_year: movie.release_year,
         poster_path: movie.poster_path,
         overview: movie.overview,
         genres: movie.genres,
         director: movie.director,
+        vote_average: movie.vote_average ?? 0,
+        vote_count: movie.vote_count ?? 0,
         is_watched: nextWatched,
         is_custom: movie.is_custom,
       },
@@ -171,11 +195,14 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         user_id: session.user.id,
         tmdb_id: movie.tmdb_id,
         title: movie.title,
+        release_date: movie.release_date ?? null,
         release_year: movie.release_year,
         poster_path: movie.poster_path,
         overview: movie.overview,
         genres: movie.genres,
         director: movie.director,
+        vote_average: movie.vote_average ?? 0,
+        vote_count: movie.vote_count ?? 0,
         is_watched: false,
         is_custom: true,
       },
@@ -219,9 +246,10 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-col gap-3 rounded-xl border border-cinema-border bg-cinema-surface p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
         <ListFilter size={15} className="text-cinema-muted" />
-        {(['all', 'unwatched', 'watched'] as Filter[]).map((f) => (
+        {(['all', 'watched', 'watchlist', 'upcoming'] as Filter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -231,9 +259,22 @@ export default function MovieGrid({ session }: { session: Session | null }) {
                 : 'bg-cinema-surface text-cinema-muted hover:text-white'
             }`}
           >
-            {f === 'all' ? 'Alle' : f === 'unwatched' ? 'Noch nicht gesehen' : 'Gesehen'}
+            {f === 'all' ? 'Alle Filme' : f === 'watched' ? 'Bereits gesehen' : f === 'watchlist' ? 'Watchlist' : 'Demnächst im Kino'}
           </button>
         ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs text-cinema-muted">
+          Sortieren nach
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as Sort)}
+            className="rounded-lg border border-cinema-border bg-cinema-surface2 px-2.5 py-2 text-xs text-white outline-none focus:border-cinema-accent"
+          >
+            <option value="title">Titel (A-Z)</option>
+            <option value="rating">TMDB-Bewertung</option>
+            <option value="release">Neueste zuerst</option>
+          </select>
+        </label>
       </div>
 
       {loadingClassics || loadingUserData ? (
@@ -243,7 +284,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {filteredMovies.map((movie) => (
+          {visibleMovies.map((movie) => (
             <MovieCard
               key={movie.tmdb_id}
               movie={movie}
