@@ -15,14 +15,15 @@ export async function POST(req: Request) {
       return Response.json({ error: 'A non-empty prompt is required' }, { status: 400 });
     }
 
-    const client = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey });
 
-    const interaction = await client.interactions.create({
-      model: 'gemini-3.8-flash',
-      input: prompt,
+    // Zurück zum bewährten generateContent mit gemini-2.5-flash, das blitzschnell antwortet
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
     });
 
-    return Response.json({ result: interaction.output_text });
+    return Response.json({ result: response.text });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'An unexpected error occurred';
     return Response.json({ error: message }, { status: 500 });
