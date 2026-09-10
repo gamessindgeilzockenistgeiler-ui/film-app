@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "OPENROUTER_API_KEY is not configured" }, { status: 500 });
     }
 
-    const body = await req.json();
+    const body = wahlBody(await req.json());
     const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
       return NextResponse.json({ error: "A non-empty prompt is required" }, { status: 400 });
@@ -21,11 +21,11 @@ export async function POST(req: NextRequest) {
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://cinetrack.vercel.app", // Optional für OpenRouter Rankings
-        "X-Title": "CineTrack", // Optional
+        "HTTP-Referer": "https://cinetrack.vercel.app",
+        "X-Title": "CineTrack",
       },
       body: JSON.stringify({
-        model: "google/gemma-2-9b-it:free", // Rasend schnell und extrem schlau
+        model: "openrouter/free", // Nimmt automatisch immer ein freies, aktives Modell!
         messages: [
           {
             role: "user",
@@ -49,4 +49,8 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function wahlBody(json: any) {
+  return json;
 }
