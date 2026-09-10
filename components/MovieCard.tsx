@@ -1,16 +1,18 @@
 'use client';
 
 import Image from 'next/image';
-import { Check, Clapperboard, Sparkles } from 'lucide-react';
+import { Check, Clapperboard, Sparkles, Trash2 } from 'lucide-react';
 import { posterUrl } from '@/lib/posterUrl';
 import type { Movie } from '@/lib/types';
 
 export default function MovieCard({
   movie,
   onToggleWatched,
+  onDeleteMovie,
 }: {
   movie: Movie;
   onToggleWatched: (movie: Movie) => void;
+  onDeleteMovie?: (movie: Movie) => void;
 }) {
   const poster = posterUrl(movie.poster_path, 'w500');
 
@@ -36,9 +38,23 @@ export default function MovieCard({
         )}
 
         {movie.is_custom && (
-          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-cinema-gold/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">
-            <Sparkles size={10} /> eigene Wahl
-          </span>
+          <div className="absolute left-2 top-2 flex items-center gap-1.5">
+            <span className="flex items-center gap-1 rounded-full bg-cinema-gold/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+              <Sparkles size={10} /> eigene Wahl
+            </span>
+            {onDeleteMovie && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteMovie(movie);
+                }}
+                title="Film löschen"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600/90 text-white hover:bg-red-600 transition-colors"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
         )}
 
         <button

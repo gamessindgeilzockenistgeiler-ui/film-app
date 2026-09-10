@@ -107,7 +107,6 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     }
     const nextWatched = !movie.is_watched;
 
-    // Optimistisches UI-Update
     setUserRows((prev) => {
       const exists = prev.find((r) => r.tmdb_id === movie.tmdb_id);
       if (exists) {
@@ -147,7 +146,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
     if (error) {
       setErrorMsg(error.message);
-      loadUserData(); // bei Fehler mit DB-Stand synchronisieren
+      loadUserData();
     }
   };
 
@@ -188,6 +187,24 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     }
   };
 
+  // 6) Eigenen Film aus Supabase löschen
+  const handleDeleteMovie = async (movie: Movie) => {
+    if (!session) return;
+
+    setUserRows((prev) => prev.filter((r) => r.tmdb_id !== movie.tmdb_id));
+
+    const { error } = await supabase
+      .from('user_movies')
+      .delete()
+      .eq('user_id', session.user.id)
+      .eq('tmdb_id', movie.tmdb_id);
+
+    if (error) {
+      setErrorMsg(error.message);
+      loadUserData();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <SearchBar onAddMovie={handleAddMovie} disabled={!session} />
@@ -225,7 +242,12 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filteredMovies.map((movie) => (
-            <MovieCard key={movie.tmdb_id} movie={movie} onToggleWatched={handleToggleWatched} />
+            <MovieCard
+              key={movie.tmdb_id}
+              movie={movie}
+              onToggleWatched={handleToggleWatched}
+              onDeleteMovie={movie.is_custom ? handleDeleteMovie : undefined}
+            />
           ))}
         </div>
       )}
