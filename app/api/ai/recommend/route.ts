@@ -17,15 +17,9 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Wir schalten das Thinking-Verhalten auf MINIMAL, damit es rasend schnell antwortet
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-3.8-flash',
       contents: prompt,
-      config: {
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
-      },
     });
 
     return Response.json({ result: response.text });
