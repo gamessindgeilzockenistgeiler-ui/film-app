@@ -19,9 +19,13 @@ export default function MovieCard({
   onSelectMovie: () => void;
 }) {
   const poster = posterUrl(movie.poster_path, 'w500');
-  const isUpcoming = Boolean(
-    movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
-  ) || Boolean(movie.release_year && movie.release_year > new Date().getFullYear());
+  const exactReleaseTimestamp = movie.release_date
+    ? new Date(`${movie.release_date}T00:00:00`).getTime()
+    : NaN;
+  const releaseYear = Number(movie.release_year);
+  const isUpcoming = Number.isFinite(exactReleaseTimestamp)
+    ? exactReleaseTimestamp > Date.now()
+    : releaseYear >= new Date().getFullYear();
 
   return (
     <div

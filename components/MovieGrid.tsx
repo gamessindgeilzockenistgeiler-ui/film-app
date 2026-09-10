@@ -30,13 +30,12 @@ interface UserMovieRow {
 }
 
 function isUpcomingMovie(movie: Movie): boolean {
-  const releaseTimestamp = movie.release_date
+  const exactReleaseTimestamp = movie.release_date
     ? new Date(`${movie.release_date}T00:00:00`).getTime()
-    : movie.release_year && movie.release_year > new Date().getFullYear()
-      ? new Date(`${movie.release_year}-01-01T00:00:00`).getTime()
-      : NaN;
-
-  return Number.isFinite(releaseTimestamp) && releaseTimestamp > Date.now();
+    : NaN;
+  const releaseYear = Number(movie.release_year);
+  if (Number.isFinite(exactReleaseTimestamp)) return exactReleaseTimestamp > Date.now();
+  return releaseYear >= new Date().getFullYear();
 }
 
 export default function MovieGrid({ session }: { session: Session | null }) {
