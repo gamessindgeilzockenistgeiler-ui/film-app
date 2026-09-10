@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { X, Play, Users, Clapperboard, Star, ThumbsDown, ThumbsUp, MessageSquare, Send } from 'lucide-react';
 import { posterUrl } from '@/lib/posterUrl';
-import { supabase } from '@/lib/supabaseClient';
+import { getSafeUser, supabase } from '@/lib/supabaseClient';
 import type { Movie } from '@/lib/types';
 
 interface CastMember {
@@ -132,8 +132,7 @@ export default function MovieDetailModal({
 
     setSubmittingComment(true);
     setCommentError('');
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
+    const user = await getSafeUser();
 
     if (!user) {
       setCommentError('Bitte melde dich an, um zu kommentieren.');
@@ -175,8 +174,8 @@ export default function MovieDetailModal({
   }
 
   async function reactToComment(commentId: string, reaction: 'likes' | 'dislikes') {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
+    const user = await getSafeUser();
+    if (!user) {
       setCommentError('Bitte melde dich an, um zu reagieren.');
       return;
     }

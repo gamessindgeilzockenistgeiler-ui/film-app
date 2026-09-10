@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabaseClient';
+import { getSafeSession, supabase } from '@/lib/supabaseClient';
 import Header from '@/components/Header';
 import AuthModal from '@/components/AuthModal';
 import MovieGrid from '@/components/MovieGrid';
@@ -15,10 +15,13 @@ export default function Home() {
   const [profileSetupOpen, setProfileSetupOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    let active = true;
+
+    getSafeSession().then((currentSession) => {
+      if (!active) return;
+      setSession(currentSession);
       setCheckedAuth(true);
-      if (data.session) checkProfile(data.session.user.id);
+      if (currentSession) checkProfile(currentSession.user.id);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -27,12 +30,23 @@ export default function Home() {
       else setProfileSetupOpen(false);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   async function checkProfile(userId: string) {
-    const { data } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
-    setProfileSetupOpen(!data);
+    try {
+      const { data, error } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
+      if (error) {
+        console.warn('Profilstatus konnte nicht geladen werden:', error.message);
+        return;
+      }
+      setProfileSetupOpen(!data);
+    } catch (error) {
+      console.warn('Profilstatus ist vorübergehend nicht verfügbar:', error);
+    }
   }
 
   return (
