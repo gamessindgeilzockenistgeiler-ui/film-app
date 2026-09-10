@@ -8,6 +8,7 @@ import ProgressBar from './ProgressBar';
 import SearchBar from './SearchBar';
 import MovieCard from './MovieCard';
 import type { Movie } from '@/lib/types';
+import MovieDetailModal from './MovieDetailModal';
 
 type Filter = 'all' | 'watched' | 'unwatched';
 
@@ -30,6 +31,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
   const [loadingUserData, setLoadingUserData] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
   // 1) Klassiker-Liste laden (einmalig, unabhängig vom Login-Status)
   useEffect(() => {
@@ -247,9 +249,15 @@ export default function MovieGrid({ session }: { session: Session | null }) {
               movie={movie}
               onToggleWatched={handleToggleWatched}
               onDeleteMovie={movie.is_custom ? handleDeleteMovie : undefined}
+              onSelectMovie={() => setSelectedMovie(movie)}
             />
           ))}
         </div>
+      )}
+
+      {/* Modal sauber am Ende platziert */}
+      {selectedMovie && (
+        <MovieDetailModal movie={selectedMovie} onClose={() => setSelectedMovie(null)} />
       )}
     </div>
   );

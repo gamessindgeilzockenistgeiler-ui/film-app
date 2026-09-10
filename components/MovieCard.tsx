@@ -9,16 +9,19 @@ export default function MovieCard({
   movie,
   onToggleWatched,
   onDeleteMovie,
+  onSelectMovie,
 }: {
   movie: Movie;
   onToggleWatched: (movie: Movie) => void;
   onDeleteMovie?: (movie: Movie) => void;
+  onSelectMovie: () => void;
 }) {
   const poster = posterUrl(movie.poster_path, 'w500');
 
   return (
     <div
-      className={`group relative flex flex-col overflow-hidden rounded-xl border border-cinema-border bg-cinema-surface shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-cinema-accent/60 hover:shadow-glow ${
+      onClick={onSelectMovie}
+      className={`group relative flex flex-col overflow-hidden rounded-xl border border-cinema-border bg-cinema-surface shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-cinema-accent/60 hover:shadow-glow cursor-pointer ${
         movie.is_watched ? 'opacity-55 grayscale-[35%]' : ''
       }`}
     >
@@ -58,7 +61,10 @@ export default function MovieCard({
         )}
 
         <button
-          onClick={() => onToggleWatched(movie)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleWatched(movie);
+          }}
           title={movie.is_watched ? 'Als ungesehen markieren' : 'Als gesehen markieren'}
           className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
             movie.is_watched
@@ -98,7 +104,10 @@ export default function MovieCard({
         </p>
 
         <button
-          onClick={() => onToggleWatched(movie)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleWatched(movie);
+          }}
           className={`mt-auto flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
             movie.is_watched
               ? 'bg-cinema-surface2 text-emerald-400'
