@@ -104,13 +104,15 @@ export default function MovieGrid({ session }: { session: Session | null }) {
   }, [classics, userRows]);
 
   const watchedCount = mergedMovies.filter((m) => m.is_watched).length;
+  const isUpcoming = (movie: Movie) => Boolean(
+    movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+  );
 
   const visibleMovies = useMemo(() => {
-    const upcoming = (movie: Movie) => Boolean(movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now());
     const filtered = mergedMovies.filter((movie) => {
       if (filter === 'watched') return movie.is_watched;
       if (filter === 'watchlist') return !movie.is_watched;
-      if (filter === 'upcoming') return upcoming(movie);
+      if (filter === 'upcoming') return isUpcoming(movie);
       return true;
     });
 
@@ -153,6 +155,10 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
   // 4) "Gesehen" umschalten -> Upsert in Supabase
   const handleToggleWatched = async (movie: Movie) => {
+    if (isUpcoming(movie)) {
+      setErrorMsg('Dieser Film ist noch nicht erschienen und kann noch nicht als gesehen markiert werden.');
+      return;
+    }
     if (!session) {
       setErrorMsg('Bitte melde dich an, um Filme als gesehen zu markieren.');
       return;

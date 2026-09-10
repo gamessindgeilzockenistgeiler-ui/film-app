@@ -64,14 +64,20 @@ export default function MovieCard({
 
         <button
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             onToggleWatched(movie);
           }}
-          title={movie.is_watched ? 'Als ungesehen markieren' : 'Als gesehen markieren'}
+          title={movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+            ? 'Noch nicht erschienen'
+            : movie.is_watched ? 'Als ungesehen markieren' : 'Als gesehen markieren'}
+          aria-disabled={Boolean(movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now())}
           className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
             movie.is_watched
               ? 'border-emerald-400 bg-emerald-500 text-white'
-              : 'border-white/70 bg-black/40 text-white/80 hover:border-emerald-400 hover:text-emerald-400'
+              : movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+                ? 'cursor-not-allowed border-white/30 bg-black/50 text-white/40'
+                : 'border-white/70 bg-black/40 text-white/80 hover:border-emerald-400 hover:text-emerald-400'
           }`}
         >
           <Check size={16} strokeWidth={3} />
@@ -107,20 +113,33 @@ export default function MovieCard({
           </div>
         )}
 
-        <label className="flex items-center justify-between gap-2 text-[11px] text-cinema-muted" onClick={(e) => e.stopPropagation()}>
-          <span>Deine Wertung</span>
-          <select
-            value={movie.user_rating ?? ''}
-            onChange={(event) => onRateMovie(movie, Number(event.target.value))}
-            className="rounded-md border border-cinema-border bg-cinema-surface2 px-1.5 py-1 text-[11px] text-amber-300 outline-none focus:border-cinema-accent"
-            aria-label={`Eigene Wertung für ${movie.title}`}
-          >
-            <option value="">- / 10</option>
+        <div className="rounded-lg border border-cinema-border bg-cinema-surface2/70 px-2.5 py-2" onClick={(e) => e.stopPropagation()}>
+          <div className="mb-1.5 flex items-center justify-between text-[11px] text-cinema-muted">
+            <span>Deine Wertung</span>
+            <span className="font-semibold text-amber-300">{movie.user_rating ? `${movie.user_rating}/10` : 'Noch offen'}</span>
+          </div>
+          <div className="grid grid-cols-10 gap-1">
             {Array.from({ length: 10 }, (_, index) => index + 1).map((rating) => (
-              <option key={rating} value={rating}>{rating} / 10</option>
+              <button
+                key={rating}
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onRateMovie(movie, rating);
+                }}
+                aria-label={`${rating} von 10 für ${movie.title}`}
+                className={`h-6 rounded text-[10px] font-semibold transition-all ${
+                  movie.user_rating && rating <= movie.user_rating
+                    ? 'bg-cinema-gold text-black shadow-[0_0_8px_rgba(245,158,11,0.55)]'
+                    : 'bg-cinema-surface text-cinema-muted hover:bg-cinema-accent hover:text-white'
+                }`}
+              >
+                {rating}
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
 
         <p className="line-clamp-3 text-xs leading-relaxed text-cinema-muted">
           {movie.overview || 'Keine Beschreibung verfügbar.'}
@@ -128,17 +147,20 @@ export default function MovieCard({
 
         <button
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             onToggleWatched(movie);
           }}
           className={`mt-auto flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
             movie.is_watched
               ? 'bg-cinema-surface2 text-emerald-400'
-              : 'bg-cinema-accent/15 text-cinema-accent hover:bg-cinema-accent hover:text-white'
+              : movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now()
+                ? 'bg-cinema-surface2 text-cinema-muted'
+                : 'bg-cinema-accent/15 text-cinema-accent hover:bg-cinema-accent hover:text-white'
           }`}
         >
           <Check size={13} />
-          {movie.is_watched ? 'Gesehen ✓' : 'Als gesehen markieren'}
+          {movie.is_watched ? 'Gesehen ✓' : movie.release_date && new Date(`${movie.release_date}T00:00:00`).getTime() > Date.now() ? 'Noch nicht erschienen' : 'Als gesehen markieren'}
         </button>
       </div>
     </div>

@@ -60,6 +60,7 @@ export default function MovieDetailModal({
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [commentError, setCommentError] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [myReactions, setMyReactions] = useState<Record<string, 'like' | 'dislike'>>({});
 
   useEffect(() => {
     // TMDB Details (Cast, Streaming & Trailer) nachladen
@@ -118,6 +119,18 @@ export default function MovieDetailModal({
               replies: repliesByParent.get(comment.id) ?? [],
             }))
         );
+
+        const user = await getSafeUser();
+        if (user && allComments.length > 0) {
+          const { data: reactionRows } = await supabase
+            .from('comment_reactions')
+            .select('comment_id,reaction')
+            .eq('user_id', user.id)
+            .in('comment_id', allComments.map((comment) => comment.id));
+          setMyReactions(Object.fromEntries(
+            (reactionRows ?? []).map((row) => [row.comment_id, row.reaction as 'like' | 'dislike'])
+          ));
+        }
       }
 
       setCommentsLoading(false);
@@ -173,32 +186,36 @@ export default function MovieDetailModal({
     setSubmittingComment(false);
   }
 
-  async function reactToComment(commentId: string, reaction: 'likes' | 'dislikes') {
+  async function reactToComment(commentId: string, reaction: 'like' | 'dislike') {
     const user = await getSafeUser();
     if (!user) {
       setCommentError('Bitte melde dich an, um zu reagieren.');
       return;
     }
 
-    const comment = [...comments, ...comments.flatMap((item) => item.replies)].find((item) => item.id === commentId);
-    if (!comment) return;
+    const { data, error } = await supabase.rpc('toggle_comment_reaction', {
+      p_comment_id: commentId,
+      p_reaction: reaction,
+    });
 
-    const { error } = await supabase
-      .from('movie_comments')
-      .update({ [reaction]: comment[reaction] + 1 })
-      .eq('id', commentId);
-
-    if (error) {
+    if (error || !data) {
       setCommentError('Reaktion konnte nicht gespeichert werden.');
       return;
     }
 
+    const result = data as { reaction: 'like' | 'dislike' | null; likes: number; dislikes: number };
+    setMyReactions((current) => {
+      const next = { ...current };
+      if (result.reaction) next[commentId] = result.reaction;
+      else delete next[commentId];
+      return next;
+    });
     setComments((current) => current.map((item) => {
-      if (item.id === commentId) return { ...item, [reaction]: item[reaction] + 1 };
+      if (item.id === commentId) return { ...item, likes: result.likes, dislikes: result.dislikes };
       return {
         ...item,
         replies: item.replies.map((reply) => (
-          reply.id === commentId ? { ...reply, [reaction]: reply[reaction] + 1 } : reply
+          reply.id === commentId ? { ...reply, likes: result.likes, dislikes: result.dislikes } : reply
         )),
       };
     }));
@@ -421,10 +438,10 @@ export default function MovieDetailModal({
                     </div>
                     <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-cinema-muted">{comment.content}</p>
                     <div className="mt-3 flex items-center gap-3 text-[11px] text-cinema-muted">
-                      <button type="button" onClick={() => reactToComment(comment.id, 'likes')} className="inline-flex items-center gap-1 hover:text-emerald-300">
+                      <button type="button" onClick={() => reactToComment(comment.id, 'like')} className={`inline-flex items-center gap-1 ${myReactions[comment.id] === 'like' ? 'text-emerald-300' : 'hover:text-emerald-300'}`}>
                         <ThumbsUp size={13} /> {comment.likes}
                       </button>
-                      <button type="button" onClick={() => reactToComment(comment.id, 'dislikes')} className="inline-flex items-center gap-1 hover:text-red-300">
+                      <button type="button" onClick={() => reactToComment(comment.id, 'dislike')} className={`inline-flex items-center gap-1 ${myReactions[comment.id] === 'dislike' ? 'text-red-300' : 'hover:text-red-300'}`}>
                         <ThumbsDown size={13} /> {comment.dislikes}
                       </button>
                       <button
@@ -475,10 +492,10 @@ export default function MovieDetailModal({
                           </div>
                           <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-cinema-muted">{reply.content}</p>
                           <div className="mt-3 flex items-center gap-3 text-[11px] text-cinema-muted">
-                            <button type="button" onClick={() => reactToComment(reply.id, 'likes')} className="inline-flex items-center gap-1 hover:text-emerald-300">
+                            <button type="button" onClick={() => reactToComment(reply.id, 'like')} className={`inline-flex items-center gap-1 ${myReactions[reply.id] === 'like' ? 'text-emerald-300' : 'hover:text-emerald-300'}`}>
                               <ThumbsUp size={13} /> {reply.likes}
                             </button>
-                            <button type="button" onClick={() => reactToComment(reply.id, 'dislikes')} className="inline-flex items-center gap-1 hover:text-red-300">
+                            <button type="button" onClick={() => reactToComment(reply.id, 'dislike')} className={`inline-flex items-center gap-1 ${myReactions[reply.id] === 'dislike' ? 'text-red-300' : 'hover:text-red-300'}`}>
                               <ThumbsDown size={13} /> {reply.dislikes}
                             </button>
                           </div>

@@ -28,21 +28,28 @@ export default function PublicProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [movies, setMovies] = useState<PublicMovie[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     async function loadProfile() {
-      const { data } = await supabase.from('profiles').select('id,username,bio,favorite_genres,is_private').eq('id', params.id).maybeSingle();
+      const { data, error: profileError } = await supabase.from('profiles').select('id,username,bio,favorite_genres,is_private').eq('id', params.id).maybeSingle();
+      if (profileError) {
+        setError('Profil konnte nicht geladen werden.');
+        setLoading(false);
+        return;
+      }
       if (!data || data.is_private) {
         setLoading(false);
         return;
       }
 
       setProfile(data as Profile);
-      const { data: movieData } = await supabase
+      const { data: movieData, error: movieError } = await supabase
         .from('user_movies')
         .select('tmdb_id,title,release_year,poster_path,user_rating,is_watched')
         .eq('user_id', params.id)
         .order('title');
+      if (movieError) setError('Die öffentliche Filmliste konnte nicht geladen werden.');
       setMovies((movieData as PublicMovie[]) ?? []);
       setLoading(false);
     }
@@ -53,7 +60,9 @@ export default function PublicProfilePage() {
     <main className="min-h-screen bg-cinema-bg px-4 py-8 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-cinema-muted hover:text-white"><ArrowLeft size={16} /> Zurück zu CineTrack</Link>
-        {loading ? <p className="text-cinema-muted">Profil wird geladen...</p> : !profile ? (
+        {loading ? <p className="text-cinema-muted">Profil wird geladen...</p> : error ? (
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center text-sm text-red-300">{error}</div>
+        ) : !profile ? (
           <div className="rounded-2xl border border-cinema-border bg-cinema-surface p-8 text-center">
             <Lock className="mx-auto mb-3 text-cinema-muted" />
             <h1 className="text-xl font-semibold">Profil nicht verfügbar</h1>

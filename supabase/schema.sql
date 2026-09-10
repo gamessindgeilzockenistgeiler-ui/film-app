@@ -144,6 +144,74 @@ create policy "Users can increment comment reactions"
   using (auth.uid() is not null)
   with check (auth.uid() is not null);
 
+-- Pro User und Kommentar ist genau eine Reaktion erlaubt.
+create table if not exists public.comment_reactions (
+  comment_id uuid not null references public.movie_comments(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  reaction text not null check (reaction in ('like', 'dislike')),
+  created_at timestamptz not null default now(),
+  primary key (comment_id, user_id)
+);
+
+alter table public.comment_reactions enable row level security;
+
+drop policy if exists "Users can view comment reactions" on public.comment_reactions;
+create policy "Users can view comment reactions"
+  on public.comment_reactions for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can manage own comment reactions" on public.comment_reactions;
+create policy "Users can manage own comment reactions"
+  on public.comment_reactions for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create or replace function public.toggle_comment_reaction(
+  p_comment_id uuid,
+  p_reaction text
+)
+returns table (reaction text, likes integer, dislikes integer)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  current_reaction text;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select cr.reaction into current_reaction
+  from public.comment_reactions cr
+  where cr.comment_id = p_comment_id and cr.user_id = auth.uid();
+
+  if current_reaction = p_reaction then
+    delete from public.comment_reactions
+    where comment_id = p_comment_id and user_id = auth.uid();
+  else
+    insert into public.comment_reactions (comment_id, user_id, reaction)
+    values (p_comment_id, auth.uid(), p_reaction)
+    on conflict (comment_id, user_id)
+    do update set reaction = excluded.reaction;
+  end if;
+
+  update public.movie_comments mc
+  set likes = (select count(*) from public.comment_reactions cr where cr.comment_id = mc.id and cr.reaction = 'like'),
+      dislikes = (select count(*) from public.comment_reactions cr where cr.comment_id = mc.id and cr.reaction = 'dislike')
+  where mc.id = p_comment_id;
+
+  select cr.reaction into current_reaction
+  from public.comment_reactions cr
+  where cr.comment_id = p_comment_id and cr.user_id = auth.uid();
+
+  return query
+  select current_reaction,
+    (select count(*)::integer from public.comment_reactions cr where cr.comment_id = p_comment_id and cr.reaction = 'like'),
+    (select count(*)::integer from public.comment_reactions cr where cr.comment_id = p_comment_id and cr.reaction = 'dislike');
+end;
+$$;
+
 -- ============================================================
 -- Optional, aber empfohlen: E-Mail-Bestätigung deaktivieren,
 -- damit sich Test-User sofort anmelden können, ohne eine Mail
