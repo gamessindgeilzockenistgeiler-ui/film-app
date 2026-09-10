@@ -34,6 +34,14 @@ export interface TmdbMovieFull {
   genres: { id: number; name: string }[];
   credits?: {
     crew: { job: string; name: string }[];
+    cast: { id: number; name: string; character: string; profile_path: string | null }[];
+  };
+  'watch/providers'?: {
+    results?: {
+      DE?: {
+        flatrate?: { provider_id: number; provider_name: string; logo_path: string }[];
+      };
+    };
   };
 }
 
@@ -60,10 +68,14 @@ export async function searchMovies(query: string, limit = 10): Promise<TmdbMovie
 }
 
 export async function getMovieDetails(id: number): Promise<TmdbMovieFull | null> {
-  const res = await fetch(`${TMDB_BASE}/movie/${id}?append_to_response=credits&language=de-DE`, {
-    headers: authHeaders(),
-    next: { revalidate: 60 * 60 * 24 },
-  });
+  // credits und watch/providers direkt zusammen abfragen
+  const res = await fetch(
+    `${TMDB_BASE}/movie/${id}?append_to_response=credits,watch/providers&language=de-DE`,
+    {
+      headers: authHeaders(),
+      next: { revalidate: 60 * 60 * 24 },
+    }
+  );
   if (!res.ok) return null;
   return res.json();
 }
