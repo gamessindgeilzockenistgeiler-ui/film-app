@@ -1,11 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 
-export const maxDuration = 30;
-export const runtime = "nodejs";
+// Vercel Serverless: eigenes Timeout-Limit setzen (max. je nach Plan,
+// Hobby=10s, Pro=60s Standard, mit config bis 300s möglich)
+export const maxDuration = 30; // Sekunden
+export const runtime = "nodejs"; // @google/genai braucht Node-Runtime, kein Edge
 
-const MODEL_NAME = "gemini-2.5-flash";
+// gemini-2.5-flash ist für neue Nutzer nicht mehr verfügbar.
+// Aktuell (Stand: heute) gültige Nachfolger: "gemini-3.6-flash" (Juli 2026)
+// oder das neuere, günstigere "gemini-3.7-flash". Bei Bedarf hier tauschen.
+const MODEL_NAME = "gemini-3.6-flash";
 
+// Client außerhalb des Handlers instanziieren → wird zwischen
+// Invocations desselben Warm-Containers wiederverwendet.
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
@@ -29,6 +36,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Eigener Timeout, damit ein hängender Request nicht bis zum
+  // Plattform-Timeout läuft und der Client sauber ein Fehler-JSON bekommt
+  // statt einer Endlos-Ladeschleife.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25_000);
 
@@ -36,6 +46,7 @@ export async function POST(req: NextRequest) {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: prompt,
+      // config wird ans zugrunde liegende fetch durchgereicht
       config: {
         abortSignal: controller.signal,
       },
