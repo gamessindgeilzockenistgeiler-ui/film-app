@@ -5,14 +5,11 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import Header from '@/components/Header';
 import AuthModal from '@/components/AuthModal';
-import Tabs, { TabKey } from '@/components/Tabs';
 import MovieGrid from '@/components/MovieGrid';
-import AIAssistant from '@/components/AIAssistant';
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
-  const [tab, setTab] = useState<TabKey>('list');
   const [checkedAuth, setCheckedAuth] = useState(false);
 
   useEffect(() => {
@@ -38,7 +35,7 @@ export default function Home() {
             Deine persönliche <span className="text-cinema-accent">Watchlist</span>
           </h2>
           <p className="mt-2 max-w-2xl text-cinema-muted">
-            Hake Klassiker ab, füge eigene Filme hinzu und lass dir von der KI neue Favoriten empfehlen.
+            Hake Klassiker ab, füge eigene Filme hinzu und verwalte deine Sammlung ganz ohne Zores.
           </p>
         </div>
 
@@ -49,17 +46,14 @@ export default function Home() {
           </div>
         )}
 
-        <div className="mb-6">
-          <Tabs active={tab} onChange={setTab} />
-        </div>
-
-        {tab === 'list' ? <MovieGrid session={session} /> : <AIAssistant session={session} />}
+        {/* Direkt das Film-Grid ohne Tabs oder KI-Umwege */}
+        <MovieGrid session={session} />
       </main>
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
       <footer className="mt-16 border-t border-cinema-border/70 py-8 text-center text-xs text-cinema-muted">
-        CineTrack — Filmdaten via TMDB · Empfehlungen via OpenAI · gebaut mit Next.js
+        CineTrack — Filmdaten via TMDB · gebaut mit Next.js
       </footer>
     </>
   );
