@@ -7,6 +7,7 @@ export interface Movie {
   overview: string;
   vote_average?: number;
   vote_count?: number;
+  user_rating?: number | null;
   genres: string[];
   director: string | null;
   is_watched: boolean;

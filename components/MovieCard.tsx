@@ -9,11 +9,13 @@ export default function MovieCard({
   movie,
   onToggleWatched,
   onDeleteMovie,
+  onRateMovie,
   onSelectMovie,
 }: {
   movie: Movie;
   onToggleWatched: (movie: Movie) => void;
   onDeleteMovie?: (movie: Movie) => void;
+  onRateMovie: (movie: Movie, rating: number) => void;
   onSelectMovie: () => void;
 }) {
   const poster = posterUrl(movie.poster_path, 'w500');
@@ -104,6 +106,21 @@ export default function MovieCard({
             ))}
           </div>
         )}
+
+        <label className="flex items-center justify-between gap-2 text-[11px] text-cinema-muted" onClick={(e) => e.stopPropagation()}>
+          <span>Deine Wertung</span>
+          <select
+            value={movie.user_rating ?? ''}
+            onChange={(event) => onRateMovie(movie, Number(event.target.value))}
+            className="rounded-md border border-cinema-border bg-cinema-surface2 px-1.5 py-1 text-[11px] text-amber-300 outline-none focus:border-cinema-accent"
+            aria-label={`Eigene Wertung für ${movie.title}`}
+          >
+            <option value="">- / 10</option>
+            {Array.from({ length: 10 }, (_, index) => index + 1).map((rating) => (
+              <option key={rating} value={rating}>{rating} / 10</option>
+            ))}
+          </select>
+        </label>
 
         <p className="line-clamp-3 text-xs leading-relaxed text-cinema-muted">
           {movie.overview || 'Keine Beschreibung verfügbar.'}

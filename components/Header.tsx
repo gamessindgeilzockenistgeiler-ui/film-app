@@ -1,6 +1,7 @@
 'use client';
 
 import { Film, LogOut, User } from 'lucide-react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
@@ -25,10 +26,10 @@ export default function Header({
 
         {session ? (
           <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-full border border-cinema-border bg-cinema-surface px-3 py-1.5 text-sm text-cinema-muted sm:flex">
+            <Link href={`/profile/${session.user.id}`} className="hidden items-center gap-2 rounded-full border border-cinema-border bg-cinema-surface px-3 py-1.5 text-sm text-cinema-muted transition-colors hover:text-white sm:flex">
               <User size={14} />
               {session.user.email}
-            </div>
+            </Link>
             <button
               onClick={() => supabase.auth.signOut()}
               className="flex items-center gap-1.5 rounded-full border border-cinema-border px-3 py-1.5 text-sm text-cinema-muted transition-colors hover:border-cinema-accent hover:text-white"

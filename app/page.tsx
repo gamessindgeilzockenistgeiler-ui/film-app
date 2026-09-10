@@ -6,24 +6,34 @@ import { supabase } from '@/lib/supabaseClient';
 import Header from '@/components/Header';
 import AuthModal from '@/components/AuthModal';
 import MovieGrid from '@/components/MovieGrid';
+import ProfileSetupModal from '@/components/ProfileSetupModal';
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [checkedAuth, setCheckedAuth] = useState(false);
+  const [profileSetupOpen, setProfileSetupOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setCheckedAuth(true);
+      if (data.session) checkProfile(data.session.user.id);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+      if (newSession) checkProfile(newSession.user.id);
+      else setProfileSetupOpen(false);
     });
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  async function checkProfile(userId: string) {
+    const { data } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
+    setProfileSetupOpen(!data);
+  }
 
   return (
     <>
@@ -51,6 +61,9 @@ export default function Home() {
       </main>
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {session && profileSetupOpen && (
+        <ProfileSetupModal userId={session.user.id} required onClose={() => setProfileSetupOpen(false)} />
+      )}
 
       <footer className="mt-16 border-t border-cinema-border/70 py-8 text-center text-xs text-cinema-muted">
         CineTrack — Filmdaten via TMDB · gebaut mit Next.js

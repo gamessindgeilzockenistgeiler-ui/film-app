@@ -12,6 +12,7 @@ create table if not exists public.user_movies (
   director     text,
   vote_average numeric not null default 0,
   vote_count   integer not null default 0,
+  user_rating  integer check (user_rating between 1 and 10),
   is_watched   boolean not null default false,
   is_custom    boolean not null default false,
   created_at   timestamptz not null default now(),
@@ -26,6 +27,38 @@ create table if not exists public.user_movies (
 alter table public.user_movies add column if not exists release_date date;
 alter table public.user_movies add column if not exists vote_average numeric not null default 0;
 alter table public.user_movies add column if not exists vote_count integer not null default 0;
+alter table public.user_movies add column if not exists user_rating integer;
+
+-- ============================================================
+-- Öffentliche Nutzerprofile
+-- ============================================================
+create table if not exists public.profiles (
+  id              uuid primary key references auth.users(id) on delete cascade,
+  username        text not null unique,
+  bio             text not null default '',
+  favorite_genres text[] not null default '{}',
+  is_private      boolean not null default false,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "Public profiles are viewable" on public.profiles;
+create policy "Public profiles are viewable"
+  on public.profiles for select
+  using (not is_private or auth.uid() = id);
+
+drop policy if exists "Users can create own profile" on public.profiles;
+create policy "Users can create own profile"
+  on public.profiles for insert
+  with check (auth.uid() = id);
+
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
+  on public.profiles for update
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
 
 create index if not exists idx_user_movies_user_id on public.user_movies (user_id);
 
@@ -49,6 +82,15 @@ drop policy if exists "Users can view own movies" on public.user_movies;
 create policy "Users can view own movies"
   on public.user_movies for select
   using (auth.uid() = user_id);
+
+drop policy if exists "Public profiles can expose movies" on public.user_movies;
+create policy "Public profiles can expose movies"
+  on public.user_movies for select
+  using (exists (
+    select 1 from public.profiles
+    where profiles.id = user_movies.user_id
+      and (profiles.is_private = false or profiles.id = auth.uid())
+  ));
 
 drop policy if exists "Users can insert own movies" on public.user_movies;
 create policy "Users can insert own movies"

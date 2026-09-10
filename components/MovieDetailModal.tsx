@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { X, Play, Users, Clapperboard, Star, ThumbsDown, ThumbsUp, MessageSquare, Send } from 'lucide-react';
 import { posterUrl } from '@/lib/posterUrl';
 import { supabase } from '@/lib/supabaseClient';
@@ -174,6 +175,12 @@ export default function MovieDetailModal({
   }
 
   async function reactToComment(commentId: string, reaction: 'likes' | 'dislikes') {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      setCommentError('Bitte melde dich an, um zu reagieren.');
+      return;
+    }
+
     const comment = [...comments, ...comments.flatMap((item) => item.replies)].find((item) => item.id === commentId);
     if (!comment) return;
 
@@ -408,7 +415,7 @@ export default function MovieDetailModal({
                 <div key={comment.id} className="space-y-2">
                   <div className="rounded-xl border border-cinema-border bg-cinema-surface2 p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold text-white">{comment.user_name}</span>
+                      <Link href={`/profile/${comment.user_id}`} className="text-xs font-semibold text-white hover:text-cinema-accent">{comment.user_name}</Link>
                       <time className="text-[10px] text-cinema-muted" dateTime={comment.created_at}>
                         {new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(comment.created_at))}
                       </time>
@@ -462,7 +469,7 @@ export default function MovieDetailModal({
                       {comment.replies.map((reply) => (
                         <div key={reply.id} className="rounded-xl border border-cinema-border/70 bg-cinema-surface2/60 p-3">
                           <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-semibold text-white">{reply.user_name}</span>
+                            <Link href={`/profile/${reply.user_id}`} className="text-xs font-semibold text-white hover:text-cinema-accent">{reply.user_name}</Link>
                             <time className="text-[10px] text-cinema-muted" dateTime={reply.created_at}>
                               {new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(reply.created_at))}
                             </time>

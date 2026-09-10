@@ -24,6 +24,7 @@ interface UserMovieRow {
   director: string | null;
   vote_average: number | null;
   vote_count: number | null;
+  user_rating: number | null;
   is_watched: boolean;
   is_custom: boolean;
 }
@@ -78,7 +79,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
     const mergedClassics = classics.map((c) => {
       const row = rowByTmdbId.get(c.tmdb_id);
-      return row ? { ...c, is_watched: row.is_watched } : c;
+      return row ? { ...c, is_watched: row.is_watched, user_rating: row.user_rating } : c;
     });
 
     const customMovies: Movie[] = userRows
@@ -94,6 +95,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         director: r.director,
         vote_average: r.vote_average ?? 0,
         vote_count: r.vote_count ?? 0,
+        user_rating: r.user_rating,
         is_watched: r.is_watched,
         is_custom: true,
       }));
@@ -131,6 +133,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         director: movie.director,
         vote_average: movie.vote_average ?? 0,
         vote_count: movie.vote_count ?? 0,
+        user_rating: movie.user_rating ?? null,
         is_watched: isWatched,
         is_custom: isCustom,
       };
@@ -174,6 +177,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
           director: movie.director,
           vote_average: movie.vote_average ?? 0,
           vote_count: movie.vote_count ?? 0,
+          user_rating: movie.user_rating ?? null,
           is_watched: nextWatched,
           is_custom: movie.is_custom,
         },
@@ -181,6 +185,41 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     });
 
       const { error } = await persistMovie(movie, nextWatched, movie.is_custom);
+
+    if (error) {
+      setErrorMsg(error.message);
+      loadUserData();
+    }
+  };
+
+  const handleRateMovie = async (movie: Movie, rating: number) => {
+    if (!session) {
+      setErrorMsg('Bitte melde dich an, um Filme zu bewerten.');
+      return;
+    }
+
+    const ratedMovie = { ...movie, user_rating: rating };
+    setUserRows((current) => {
+      const exists = current.some((row) => row.tmdb_id === movie.tmdb_id);
+      if (exists) return current.map((row) => (row.tmdb_id === movie.tmdb_id ? { ...row, user_rating: rating } : row));
+      return [...current, {
+        tmdb_id: movie.tmdb_id,
+        title: movie.title,
+        release_date: movie.release_date ?? null,
+        release_year: movie.release_year,
+        poster_path: movie.poster_path,
+        overview: movie.overview,
+        genres: movie.genres,
+        director: movie.director,
+        vote_average: movie.vote_average ?? 0,
+        vote_count: movie.vote_count ?? 0,
+        user_rating: rating,
+        is_watched: movie.is_watched,
+        is_custom: movie.is_custom,
+      }];
+    });
+
+    const { error } = await persistMovie(ratedMovie, movie.is_watched, movie.is_custom);
 
     if (error) {
       setErrorMsg(error.message);
@@ -285,6 +324,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
               movie={movie}
               onToggleWatched={handleToggleWatched}
               onDeleteMovie={movie.is_custom ? handleDeleteMovie : undefined}
+              onRateMovie={handleRateMovie}
               onSelectMovie={() => setSelectedMovie(movie)}
             />
           ))}
