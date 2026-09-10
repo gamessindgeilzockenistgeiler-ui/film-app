@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         "X-Title": "CineTrack", // Optional
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat", // Rasend schnell und extrem schlau
+        model: "google/gemma-2-9b-it:free", // Rasend schnell und extrem schlau
         messages: [
           {
             role: "user",
