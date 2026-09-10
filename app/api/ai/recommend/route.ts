@@ -1,31 +1,63 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from "@google/genai";
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = 'nodejs';
+export const maxDuration = 30;
+export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+const MODEL_NAME = "gemini-2.5-flash";
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+export async function POST(req: NextRequest) {
+  let body: unknown;
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return Response.json({ error: 'GEMINI_API_KEY is not configured' }, { status: 500 });
-    }
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
-    const body = await req.json();
-    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
-    if (!prompt) {
-      return Response.json({ error: 'A non-empty prompt is required' }, { status: 400 });
-    }
+  const prompt = (body as { prompt?: unknown })?.prompt;
+  if (typeof prompt !== "string" || prompt.trim().length === 0) {
+    return NextResponse.json(
+      { error: "Field 'prompt' (non-empty string) is required" },
+      { status: 400 }
+    );
+  }
 
-    const ai = new GoogleGenAI({ apiKey });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25_000);
 
-    // Zurück zum bewährten generateContent mit gemini-2.5-flash, das blitzschnell antwortet
+  try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: MODEL_NAME,
       contents: prompt,
+      config: {
+        abortSignal: controller.signal,
+      },
     });
 
-    return Response.json({ result: response.text });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return Response.json({ error: message }, { status: 500 });
+    const result = response.text ?? "";
+
+    return NextResponse.json({ result });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Upstream request to Gemini timed out" },
+        { status: 504 }
+      );
+    }
+
+    console.error("Gemini generateContent failed:", err);
+    return NextResponse.json(
+      { error: "Failed to generate content" },
+      { status: 502 }
+    );
+  } finally {
+    clearTimeout(timeout);
   }
 }
