@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { X, Play, Award, Users, Clapperboard } from 'lucide-react';
+import { X, Play, Users, Clapperboard } from 'lucide-react';
 import { posterUrl } from '@/lib/posterUrl';
 import type { Movie } from '@/lib/types';
 
@@ -22,6 +22,7 @@ interface StreamingProvider {
 interface MovieDetails extends Movie {
   cast?: CastMember[];
   providers?: StreamingProvider[];
+  trailer_key?: string | null;
 }
 
 export default function MovieDetailModal({
@@ -33,9 +34,10 @@ export default function MovieDetailModal({
 }) {
   const [details, setDetails] = useState<MovieDetails>(movie);
   const [loading, setLoading] = useState(true);
+  const [showTrailer, setShowTrailer] = useState(false);
 
   useEffect(() => {
-    // TMDB Details (Cast & Streaming) nachladen
+    // TMDB Details (Cast, Streaming & Trailer) nachladen
     async function fetchDetails() {
       try {
         const res = await fetch(`/api/tmdb/movie/${movie.tmdb_id}`);
@@ -46,6 +48,7 @@ export default function MovieDetailModal({
             ...data.movie,
             cast: data.movie.cast || [],
             providers: data.movie.providers || [],
+            trailer_key: data.movie.trailer_key || null,
           });
         }
       } catch (err) {
@@ -68,48 +71,77 @@ export default function MovieDetailModal({
         {/* Schließen-Button */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-cinema-surface2 text-cinema-muted hover:bg-cinema-accent hover:text-white transition-colors"
+          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-cinema-surface2 text-cinema-muted hover:bg-cinema-accent hover:text-white transition-colors"
         >
           <X size={18} />
         </button>
 
-        <div className="flex flex-col sm:flex-row gap-6">
-          {/* Poster */}
-          <div className="relative aspect-[2/3] w-full sm:w-44 flex-shrink-0 rounded-xl overflow-hidden bg-cinema-surface2 shadow-md">
-            {poster ? (
-              <Image src={poster} alt={details.title} fill className="object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-cinema-muted">
-                <Clapperboard size={36} />
-              </div>
-            )}
+        {/* YouTube Trailer Player (wenn aktiv) */}
+        {showTrailer && details.trailer_key ? (
+          <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-cinema-border shadow-lg mb-6">
+            <button
+              onClick={() => setShowTrailer(false)}
+              className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white hover:bg-red-600 transition-colors"
+            >
+              <X size={14} />
+            </button>
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${details.trailer_key}?autoplay=1`}
+              title="Trailer"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="h-full w-full border-0"
+            />
           </div>
-
-          {/* Infos */}
-          <div className="flex flex-col flex-1 gap-3">
-            <div>
-              <h3 className="text-2xl font-bold">{details.title}</h3>
-              <p className="text-sm text-cinema-muted">
-                {details.release_year ?? '—'}{details.director ? ` · Regie: ${details.director}` : ''}
-              </p>
+        ) : (
+          <div className="flex flex-col sm:flex-row gap-6">
+            {/* Poster */}
+            <div className="relative aspect-[2/3] w-full sm:w-44 flex-shrink-0 rounded-xl overflow-hidden bg-cinema-surface2 shadow-md">
+              {poster ? (
+                <Image src={poster} alt={details.title} fill className="object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-cinema-muted">
+                  <Clapperboard size={36} />
+                </div>
+              )}
             </div>
 
-            {/* Genres */}
-            {details.genres && details.genres.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {details.genres.map((g) => (
-                  <span key={g} className="rounded-full border border-cinema-border bg-cinema-surface2 px-2.5 py-0.5 text-[10px] text-cinema-muted">
-                    {g}
-                  </span>
-                ))}
+            {/* Infos */}
+            <div className="flex flex-col flex-1 gap-3">
+              <div>
+                <h3 className="text-2xl font-bold">{details.title}</h3>
+                <p className="text-sm text-cinema-muted">
+                  {details.release_year ?? '—'}{details.director ? ` · Regie: ${details.director}` : ''}
+                </p>
               </div>
-            )}
 
-            <p className="text-xs leading-relaxed text-cinema-muted">
-              {details.overview || 'Keine Beschreibung verfügbar.'}
-            </p>
+              {/* Trailer Button */}
+              {details.trailer_key && (
+                <button
+                  onClick={() => setShowTrailer(true)}
+                  className="flex items-center gap-2 rounded-xl bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg transition-transform hover:scale-105 hover:bg-red-500 w-fit"
+                >
+                  <Play size={14} fill="white" /> Trailer abspielen
+                </button>
+              )}
+
+              {/* Genres */}
+              {details.genres && details.genres.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {details.genres.map((g) => (
+                    <span key={g} className="rounded-full border border-cinema-border bg-cinema-surface2 px-2.5 py-0.5 text-[10px] text-cinema-muted">
+                      {g}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs leading-relaxed text-cinema-muted">
+                {details.overview || 'Keine Beschreibung verfügbar.'}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Streaming Anbieter */}
         <div className="mt-6 border-t border-cinema-border pt-4">
