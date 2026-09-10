@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Film nicht gefunden.' }, { status: 404 });
   }
 
-  // Cast (Schauspieler mit Bildern) und Streaming-Anbieter (für Deutschland DE) extrahieren
+  // Cast (Schauspieler mit Bildern) extrahieren
   const cast = details.credits?.cast?.map((c: any) => ({
     id: c.id,
     name: c.name,
@@ -20,11 +20,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     profile_path: c.profile_path,
   })) ?? [];
 
+  // Streaming-Anbieter (für Deutschland DE) extrahieren
   const providers = details['watch/providers']?.results?.DE?.flatrate?.map((p: any) => ({
     provider_id: p.provider_id,
     provider_name: p.provider_name,
     logo_path: p.logo_path,
   })) ?? [];
+
+  // YouTube-Trailer oder Teaser raussuchen
+  const trailer = details.videos?.results?.find(
+    (video) => video.site === 'YouTube' && (video.type === 'Trailer' || video.type === 'Teaser')
+  );
 
   const movie = {
     tmdb_id: details.id,
@@ -38,6 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     is_custom: true,
     cast,
     providers,
+    trailer_key: trailer?.key ?? null, // Da ist das gute Stück!
   };
 
   return NextResponse.json({ movie });
