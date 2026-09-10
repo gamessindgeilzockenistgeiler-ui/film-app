@@ -35,7 +35,7 @@ function isUpcomingMovie(movie: Movie): boolean {
     : NaN;
   const releaseYear = Number(movie.release_year);
   if (Number.isFinite(exactReleaseTimestamp)) return exactReleaseTimestamp > Date.now();
-  return releaseYear >= new Date().getFullYear();
+  return releaseYear > new Date().getFullYear();
 }
 
 export default function MovieGrid({ session }: { session: Session | null }) {
@@ -147,15 +147,18 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       is_custom: isCustom,
     };
 
-    let result = await supabase.from('user_movies').upsert(payload, { onConflict: 'user_id,tmdb_id' });
-    const schemaCacheError = result.error?.message.includes("Could not find the 'release_date' column")
-      || result.error?.message.includes("Could not find the 'vote_average' column")
-      || result.error?.message.includes("Could not find the 'vote_count' column")
-      || result.error?.message.includes("Could not find the 'user_rating' column");
+    const candidatePayload: Record<string, unknown> = { ...payload };
+    let result = await supabase.from('user_movies').upsert(candidatePayload, { onConflict: 'user_id,tmdb_id' });
 
-    if (schemaCacheError) {
-      const { release_date, vote_average, vote_count, user_rating, ...legacyPayload } = payload;
-      result = await supabase.from('user_movies').upsert(legacyPayload, { onConflict: 'user_id,tmdb_id' });
+    for (let attempt = 0; result.error && attempt < 4; attempt += 1) {
+      const missingColumn = result.error.message.match(/Could not find the ['"]([^'"]+)['"] column/i)?.[1]
+        ?? result.error.message.match(/(?:column|field) ['"]?([a-z_]+)['"]?/i)?.[1];
+      const knownColumns = ['release_date', 'vote_average', 'vote_count', 'user_rating'];
+      const schemaCacheError = result.error.code === 'PGRST204' || result.error.message.includes('schema cache');
+
+      if (!schemaCacheError || !missingColumn || !knownColumns.includes(missingColumn)) break;
+      delete candidatePayload[missingColumn];
+      result = await supabase.from('user_movies').upsert(candidatePayload, { onConflict: 'user_id,tmdb_id' });
     }
 
     return result;

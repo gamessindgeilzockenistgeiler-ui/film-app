@@ -25,7 +25,7 @@ export default function MovieCard({
   const releaseYear = Number(movie.release_year);
   const isUpcoming = Number.isFinite(exactReleaseTimestamp)
     ? exactReleaseTimestamp > Date.now()
-    : releaseYear >= new Date().getFullYear();
+    : releaseYear > new Date().getFullYear();
 
   return (
     <div
