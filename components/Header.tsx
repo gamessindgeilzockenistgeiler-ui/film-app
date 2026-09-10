@@ -20,7 +20,7 @@ export default function Header({
             <Film className="text-cinema-accent" size={22} />
           </div>
           <h1 className="font-display text-2xl tracking-widest text-white">
-            CINE<span className="text-cinema-accent">TRACK</span>
+            CINE<span className="text-cinema-accent">GRID</span>
           </h1>
         </div>
 

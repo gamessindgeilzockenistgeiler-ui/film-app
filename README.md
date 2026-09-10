@@ -1,4 +1,4 @@
-# 🎬 CineTrack — Cinematic Movie-Tracking Dashboard
+# 🎬 CineGrid — Cinematic Movie-Tracking Dashboard
 
 Ein extrem stylisches, dunkles Film-Tracking-Dashboard (Next.js 14 App Router, Tailwind CSS, Lucide Icons, Supabase, TMDB, OpenAI).
 

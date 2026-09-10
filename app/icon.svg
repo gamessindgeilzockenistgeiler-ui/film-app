@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-  <title id="title">CineTrack</title>
+  <title id="title">CineGrid</title>
   <rect width="64" height="64" rx="14" fill="#090909"/>
-  <path d="M45 18.5a20 20 0 1 0 0 27" fill="none" stroke="#e11d2e" stroke-width="7" stroke-linecap="round"/>
-  <path d="M45 18.5h-7M45 45.5h-7" fill="none" stroke="#e11d2e" stroke-width="7" stroke-linecap="round"/>
+  <text x="32" y="41" text-anchor="middle" fill="#e11d2e" font-family="Arial, sans-serif" font-size="25" font-weight="700" letter-spacing="-1">CG</text>
 </svg>

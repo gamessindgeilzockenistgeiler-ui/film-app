@@ -59,7 +59,7 @@ export default function PublicProfilePage() {
   return (
     <main className="min-h-screen bg-cinema-bg px-4 py-8 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
-        <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-cinema-muted hover:text-white"><ArrowLeft size={16} /> Zurück zu CineTrack</Link>
+        <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-cinema-muted hover:text-white"><ArrowLeft size={16} /> Zurück zu CineGrid</Link>
         {loading ? <p className="text-cinema-muted">Profil wird geladen...</p> : error ? (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center text-sm text-red-300">{error}</div>
         ) : !profile ? (

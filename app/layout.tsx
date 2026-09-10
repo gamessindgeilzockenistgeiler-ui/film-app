@@ -6,8 +6,8 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const display = Bebas_Neue({ subsets: ['latin'], weight: '400', variable: '--font-display' });
 
 export const metadata: Metadata = {
-  title: 'CineTrack — Dein Film-Dashboard',
-  description: 'Verfolge deine Must-Watch-Klassiker, füge eigene Filme hinzu und lass dir von der KI Empfehlungen geben.',
+  title: 'CineGrid — Dein Film-Dashboard',
+  description: 'CineGrid: Verfolge Klassiker, verwalte deine Watchlist und entdecke neue Filme.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

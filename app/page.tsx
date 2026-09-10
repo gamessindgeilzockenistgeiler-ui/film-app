@@ -80,7 +80,7 @@ export default function Home() {
       )}
 
       <footer className="mt-16 border-t border-cinema-border/70 py-8 text-center text-xs text-cinema-muted">
-        CineTrack — Filmdaten via TMDB · gebaut mit Next.js
+        CineGrid — Filmdaten via TMDB · gebaut mit Next.js
       </footer>
     </>
   );
