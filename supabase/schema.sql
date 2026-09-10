@@ -183,6 +183,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   current_reaction text;
 begin
@@ -198,10 +199,15 @@ begin
     delete from public.comment_reactions
     where comment_id = p_comment_id and user_id = auth.uid();
   else
-    insert into public.comment_reactions (comment_id, user_id, reaction)
-    values (p_comment_id, auth.uid(), p_reaction)
-    on conflict (comment_id, user_id)
-    do update set reaction = excluded.reaction;
+    update public.comment_reactions cr
+    set reaction = p_reaction
+    where cr.comment_id = p_comment_id
+      and cr.user_id = auth.uid();
+
+    if not found then
+      insert into public.comment_reactions (comment_id, user_id, reaction)
+      values (p_comment_id, auth.uid(), p_reaction);
+    end if;
   end if;
 
   update public.movie_comments mc
