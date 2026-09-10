@@ -118,6 +118,35 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       return (b.release_date ?? `${b.release_year ?? 0}-01-01`).localeCompare(a.release_date ?? `${a.release_year ?? 0}-01-01`);
     });
   }, [filter, mergedMovies, sort]);
+    const persistMovie = async (movie: Movie, isWatched: boolean, isCustom: boolean) => {
+      const payload = {
+        user_id: session?.user.id,
+        tmdb_id: movie.tmdb_id,
+        title: movie.title,
+        release_date: movie.release_date ?? null,
+        release_year: movie.release_year,
+        poster_path: movie.poster_path,
+        overview: movie.overview,
+        genres: movie.genres,
+        director: movie.director,
+        vote_average: movie.vote_average ?? 0,
+        vote_count: movie.vote_count ?? 0,
+        is_watched: isWatched,
+        is_custom: isCustom,
+      };
+
+      let result = await supabase.from('user_movies').upsert(payload, { onConflict: 'user_id,tmdb_id' });
+      const schemaCacheError = result.error?.message.includes("Could not find the 'release_date' column")
+        || result.error?.message.includes("Could not find the 'vote_average' column")
+        || result.error?.message.includes("Could not find the 'vote_count' column");
+
+      if (schemaCacheError) {
+        const { release_date, vote_average, vote_count, ...legacyPayload } = payload;
+        result = await supabase.from('user_movies').upsert(legacyPayload, { onConflict: 'user_id,tmdb_id' });
+      }
+
+      return result;
+    };
 
   // 4) "Gesehen" umschalten -> Upsert in Supabase
   const handleToggleWatched = async (movie: Movie) => {
@@ -151,24 +180,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       ];
     });
 
-    const { error } = await supabase.from('user_movies').upsert(
-      {
-        user_id: session.user.id,
-        tmdb_id: movie.tmdb_id,
-        title: movie.title,
-        release_date: movie.release_date ?? null,
-        release_year: movie.release_year,
-        poster_path: movie.poster_path,
-        overview: movie.overview,
-        genres: movie.genres,
-        director: movie.director,
-        vote_average: movie.vote_average ?? 0,
-        vote_count: movie.vote_count ?? 0,
-        is_watched: nextWatched,
-        is_custom: movie.is_custom,
-      },
-      { onConflict: 'user_id,tmdb_id' }
-    );
+      const { error } = await persistMovie(movie, nextWatched, movie.is_custom);
 
     if (error) {
       setErrorMsg(error.message);
@@ -190,24 +202,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     }
     const movie: Movie = data.movie;
 
-    const { error } = await supabase.from('user_movies').upsert(
-      {
-        user_id: session.user.id,
-        tmdb_id: movie.tmdb_id,
-        title: movie.title,
-        release_date: movie.release_date ?? null,
-        release_year: movie.release_year,
-        poster_path: movie.poster_path,
-        overview: movie.overview,
-        genres: movie.genres,
-        director: movie.director,
-        vote_average: movie.vote_average ?? 0,
-        vote_count: movie.vote_count ?? 0,
-        is_watched: false,
-        is_custom: true,
-      },
-      { onConflict: 'user_id,tmdb_id' }
-    );
+      const { error } = await persistMovie(movie, false, true);
 
     if (error) {
       setErrorMsg(error.message);

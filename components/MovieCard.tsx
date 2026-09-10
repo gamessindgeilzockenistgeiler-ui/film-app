@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Check, Clapperboard, Sparkles, Trash2 } from 'lucide-react';
+import { Check, Clapperboard, Sparkles, Star, Trash2 } from 'lucide-react';
 import { posterUrl } from '@/lib/posterUrl';
 import type { Movie } from '@/lib/types';
 
@@ -81,8 +81,14 @@ export default function MovieCard({
       <div className="flex flex-1 flex-col gap-2 p-3.5">
         <div>
           <h4 className="line-clamp-2 font-semibold leading-tight text-white">{movie.title}</h4>
-          <p className="text-xs text-cinema-muted">
-            {movie.release_year ?? '—'}{movie.director ? ` · ${movie.director}` : ''}
+          <p className="flex flex-wrap items-center gap-2 text-xs text-cinema-muted">
+            <span>{movie.release_year ?? '—'}</span>
+            {movie.vote_average !== undefined && movie.vote_average > 0 && (
+              <span className="inline-flex items-center gap-1 text-amber-300">
+                <Star size={11} fill="currentColor" /> {movie.vote_average.toFixed(1)}
+              </span>
+            )}
+            {movie.director && <span>· {movie.director}</span>}
           </p>
         </div>
 

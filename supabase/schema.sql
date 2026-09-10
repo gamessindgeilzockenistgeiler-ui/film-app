@@ -21,6 +21,12 @@ create table if not exists public.user_movies (
   unique (user_id, tmdb_id)
 );
 
+-- Migration für bestehende Installationen: ergänzt die TMDB-Metadaten,
+-- auch wenn user_movies bereits vorher angelegt wurde.
+alter table public.user_movies add column if not exists release_date date;
+alter table public.user_movies add column if not exists vote_average numeric not null default 0;
+alter table public.user_movies add column if not exists vote_count integer not null default 0;
+
 create index if not exists idx_user_movies_user_id on public.user_movies (user_id);
 
 create or replace function public.set_updated_at()
