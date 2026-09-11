@@ -76,6 +76,29 @@ create trigger trg_user_movies_updated_at
   for each row
   execute function public.set_updated_at();
 
+-- Kommende Filme dürfen erst ab ihrem Kinostart bewertet oder abgehakt werden.
+update public.user_movies
+set user_rating = null,
+    is_watched = false
+where release_date > current_date
+  and (user_rating is not null or is_watched);
+
+create or replace function public.prevent_unreleased_movie_actions()
+returns trigger as $$
+begin
+  if new.release_date > current_date and (new.is_watched or new.user_rating is not null) then
+    raise exception 'Film ist vor dem Kinostart nicht bewertbar oder abhakbar';
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_prevent_unreleased_movie_actions on public.user_movies;
+create trigger trg_prevent_unreleased_movie_actions
+  before insert or update of release_date, user_rating, is_watched on public.user_movies
+  for each row
+  execute function public.prevent_unreleased_movie_actions();
+
 alter table public.user_movies enable row level security;
 
 drop policy if exists "Users can view own movies" on public.user_movies;

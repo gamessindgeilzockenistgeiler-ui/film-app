@@ -7,6 +7,7 @@ import { X, Play, Users, Clapperboard, Star, ThumbsDown, ThumbsUp, MessageSquare
 import { posterUrl } from '@/lib/posterUrl';
 import { getSafeUser, supabase } from '@/lib/supabaseClient';
 import type { Movie } from '@/lib/types';
+import { isUpcomingMovie } from '@/lib/movieAvailability';
 
 interface CastMember {
   id: number;
@@ -232,8 +233,8 @@ export default function MovieDetailModal({
   }
 
   const poster = posterUrl(details.poster_path, 'w500');
-  const releaseDate = details.release_date ? new Date(`${details.release_date}T00:00:00`) : null;
-  const isUpcoming = releaseDate ? releaseDate.getTime() > Date.now() : false;
+  const releaseDate = details.release_date ? new Date(`${details.release_date.slice(0, 10)}T00:00:00`) : null;
+  const isUpcoming = isUpcomingMovie(details);
   const formattedReleaseDate = releaseDate
     ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }).format(releaseDate)
     : null;

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Check, Clapperboard, Sparkles, Star, Trash2 } from 'lucide-react';
 import { posterUrl } from '@/lib/posterUrl';
 import type { Movie } from '@/lib/types';
+import { isUpcomingMovie } from '@/lib/movieAvailability';
 
 export default function MovieCard({
   movie,
@@ -19,13 +20,7 @@ export default function MovieCard({
   onSelectMovie: () => void;
 }) {
   const poster = posterUrl(movie.poster_path, 'w500');
-  const exactReleaseTimestamp = movie.release_date
-    ? new Date(`${movie.release_date}T00:00:00`).getTime()
-    : NaN;
-  const releaseYear = Number(movie.release_year);
-  const isUpcoming = Number.isFinite(exactReleaseTimestamp)
-    ? exactReleaseTimestamp > Date.now()
-    : releaseYear > new Date().getFullYear();
+  const isUpcoming = isUpcomingMovie(movie);
 
   return (
     <div

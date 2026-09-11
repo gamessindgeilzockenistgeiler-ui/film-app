@@ -9,6 +9,7 @@ import SearchBar from './SearchBar';
 import MovieCard from './MovieCard';
 import type { Movie } from '@/lib/types';
 import MovieDetailModal from './MovieDetailModal';
+import { isUpcomingMovie } from '@/lib/movieAvailability';
 
 type Filter = 'all' | 'watched' | 'watchlist' | 'upcoming';
 type Sort = 'title' | 'rating' | 'release';
@@ -27,15 +28,6 @@ interface UserMovieRow {
   user_rating: number | null;
   is_watched: boolean;
   is_custom: boolean;
-}
-
-function isUpcomingMovie(movie: Movie): boolean {
-  const exactReleaseTimestamp = movie.release_date
-    ? new Date(`${movie.release_date}T00:00:00`).getTime()
-    : NaN;
-  const releaseYear = Number(movie.release_year);
-  if (Number.isFinite(exactReleaseTimestamp)) return exactReleaseTimestamp > Date.now();
-  return releaseYear > new Date().getFullYear();
 }
 
 export default function MovieGrid({ session }: { session: Session | null }) {
