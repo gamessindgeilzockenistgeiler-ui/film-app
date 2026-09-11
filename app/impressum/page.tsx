@@ -14,7 +14,7 @@ export default function ImpressumPage() {
   return (
     <main className="min-h-screen bg-cinema-bg px-4 py-8 text-white sm:px-6 sm:py-12 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <Link href="/" className="text-sm text-cinema-muted transition-colors hover:text-white">
+        <Link href="/" className="inline-block font-display text-3xl tracking-widest text-cinema-accent transition-colors hover:text-white sm:text-4xl">
           CineGrid
         </Link>
 
