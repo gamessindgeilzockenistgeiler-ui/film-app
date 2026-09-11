@@ -64,7 +64,34 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     if (error) {
       setErrorMsg(error.message);
     } else {
-      setUserRows((data as UserMovieRow[]) ?? []);
+      const rows = (data as UserMovieRow[]) ?? [];
+      const rowsMissingReleaseDate = rows.filter((row) => row.is_custom && !row.release_date);
+      const releaseDates = await Promise.all(
+        rowsMissingReleaseDate.map(async (row) => {
+          try {
+            const response = await fetch(`/api/tmdb/movie/${row.tmdb_id}`);
+            const result = await response.json();
+            return result.movie?.release_date
+              ? { tmdb_id: row.tmdb_id, release_date: result.movie.release_date, release_year: result.movie.release_year }
+              : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      const releaseDateByMovieId = new Map(
+        releaseDates.filter((release) => release !== null).map((release) => [release.tmdb_id, release])
+      );
+
+      setUserRows(rows.map((row) => {
+        const release = releaseDateByMovieId.get(row.tmdb_id);
+        const hydratedRow = release
+          ? { ...row, release_date: release.release_date, release_year: release.release_year }
+          : row;
+        return isUpcomingMovie(hydratedRow)
+          ? { ...hydratedRow, user_rating: null, is_watched: false }
+          : hydratedRow;
+      }));
     }
     setLoadingUserData(false);
   };
