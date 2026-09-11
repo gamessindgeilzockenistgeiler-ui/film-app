@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import Link from 'next/link';
 import { getSafeSession, supabase } from '@/lib/supabaseClient';
 import Header from '@/components/Header';
 import AuthModal from '@/components/AuthModal';
@@ -81,6 +82,9 @@ export default function Home() {
 
       <footer className="mt-16 border-t border-cinema-border/70 py-8 text-center text-xs text-cinema-muted">
         CineGrid — Deine Filme. Deine Watchlist. Dein nächster Lieblingsfilm.
+        <Link href="/impressum" className="ml-3 text-cinema-accent transition-colors hover:text-white">
+          Impressum
+        </Link>
       </footer>
     </>
   );
