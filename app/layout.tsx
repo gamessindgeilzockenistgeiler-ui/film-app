@@ -6,8 +6,28 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const display = Bebas_Neue({ subsets: ['latin'], weight: '400', variable: '--font-display' });
 
 export const metadata: Metadata = {
-  title: 'CineGrid — Dein Film-Dashboard',
-  description: 'CineGrid: Verfolge Klassiker, verwalte deine Watchlist und entdecke neue Filme.',
+  title: 'CineGrid – Entdecke deine Lieblingsfilme & Streaming-Highlights',
+  description: 'Entdecke Lieblingsfilme, verwalte deine persönliche Watchlist und finde die besten Streaming-Highlights mit CineGrid.',
+  keywords: [
+    'CineGrid',
+    'Filme entdecken',
+    'Watchlist',
+    'Lieblingsfilme',
+    'Streaming-Highlights',
+    'Filmempfehlungen',
+    'Kinofilme',
+  ],
+  openGraph: {
+    type: 'website',
+    locale: 'de_DE',
+    url: 'https://cinegrid.de',
+    siteName: 'CineGrid',
+    title: 'CineGrid – Entdecke deine Lieblingsfilme & Streaming-Highlights',
+    description: 'Entdecke Lieblingsfilme, verwalte deine persönliche Watchlist und finde die besten Streaming-Highlights mit CineGrid.',
+  },
+  alternates: {
+    canonical: 'https://cinegrid.de',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
