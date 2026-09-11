@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react';
+import { Mail, ShieldCheck } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Impressum | CineGrid',
@@ -14,12 +14,8 @@ export default function ImpressumPage() {
   return (
     <main className="min-h-screen bg-cinema-bg px-4 py-8 text-white sm:px-6 sm:py-12 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm text-cinema-muted transition-colors hover:text-white"
-        >
-          <ArrowLeft size={16} />
-          Zurück zu CineGrid
+        <Link href="/" className="text-sm text-cinema-muted transition-colors hover:text-white">
+          CineGrid
         </Link>
 
         <header className="mt-10 border-b border-cinema-border/70 pb-6 sm:mt-14">
