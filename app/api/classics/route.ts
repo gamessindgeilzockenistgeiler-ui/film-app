@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { CLASSICS } from '@/lib/classics';
+import { CLASSICS, getClassicReason } from '@/lib/classics';
 import { searchMovie, getMovieDetails, extractDirector, extractYear } from '@/lib/tmdb';
 import type { Movie } from '@/lib/types';
 
@@ -21,6 +21,7 @@ export async function GET() {
           release_year: extractYear(details.release_date),
           poster_path: details.poster_path,
           overview: details.overview,
+          why: getClassicReason(seed.title, seed.year),
           vote_average: details.vote_average ?? 0,
           vote_count: details.vote_count ?? 0,
           genres: details.genres?.map((g) => g.name) ?? [],

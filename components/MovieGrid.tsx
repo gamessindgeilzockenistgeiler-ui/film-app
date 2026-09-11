@@ -3,17 +3,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { Loader2, ListFilter } from 'lucide-react';
+import { Download, Loader2, ListFilter } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import ProgressBar from './ProgressBar';
 import SearchBar from './SearchBar';
 import MovieCard from './MovieCard';
 import type { Movie } from '@/lib/types';
 import { isUpcomingMovie } from '@/lib/movieAvailability';
+import MovieStats from './MovieStats';
+import MovieLists, { type MovieListOption } from './MovieLists';
+import MovieAchievements from './MovieAchievements';
+import MoviePicks from './MoviePicks';
+import MovieQuiz from './MovieQuiz';
+import UpcomingCalendar from './UpcomingCalendar';
 
 type Filter = 'all' | 'watched' | 'watchlist' | 'upcoming';
 type Sort = 'title' | 'rating' | 'release';
 const guestMoviesStorageKey = 'cinegrid_guest_movies';
+const guestListsStorageKey = 'cinegrid_guest_lists';
+const guestListItemsStorageKey = 'cinegrid_guest_list_items';
+const guestReactionsStorageKey = 'cinegrid_guest_reactions';
 
 interface UserMovieRow {
   user_id?: string;
@@ -37,10 +46,18 @@ export default function MovieGrid({ session }: { session: Session | null }) {
   const [classics, setClassics] = useState<Movie[]>([]);
   const [userRows, setUserRows] = useState<UserMovieRow[]>([]);
   const [guestRows, setGuestRows] = useState<UserMovieRow[]>([]);
+  const [lists, setLists] = useState<MovieListOption[]>([]);
+  const [listItems, setListItems] = useState<Record<string, number[]>>({});
+  const [activeListId, setActiveListId] = useState<string | null>(null);
+  const [targetListId, setTargetListId] = useState<string | null>(null);
+  const [reactions, setReactions] = useState<Record<string, 'like' | 'dislike'>>({});
   const [loadingClassics, setLoadingClassics] = useState(true);
   const [loadingUserData, setLoadingUserData] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('title');
+  const [decade, setDecade] = useState('all');
+  const [genre, setGenre] = useState('all');
+  const [minimumRating, setMinimumRating] = useState('0');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [, setClock] = useState(() => Date.now());
 
@@ -48,6 +65,39 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     const refreshClock = window.setInterval(() => setClock(Date.now()), 60 * 1000);
     return () => window.clearInterval(refreshClock);
   }, []);
+
+  useEffect(() => {
+    if (session) return;
+    try {
+      const storedLists = window.localStorage.getItem(guestListsStorageKey);
+      const storedItems = window.localStorage.getItem(guestListItemsStorageKey);
+      if (storedLists) setLists(JSON.parse(storedLists) as MovieListOption[]);
+      if (storedItems) setListItems(JSON.parse(storedItems) as Record<string, number[]>);
+      const storedReactions = window.localStorage.getItem(guestReactionsStorageKey);
+      if (storedReactions) setReactions(JSON.parse(storedReactions) as Record<string, 'like' | 'dislike'>);
+    } catch {
+      setLists([]);
+      setListItems({});
+      setReactions({});
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    Promise.all([
+      supabase.from('movie_lists').select('id,name,is_public').eq('user_id', session.user.id).order('created_at'),
+      supabase.from('movie_list_items').select('list_id,tmdb_id'),
+    ]).then(([listResult, itemResult]) => {
+      if (!listResult.error) setLists((listResult.data ?? []) as MovieListOption[]);
+      if (!itemResult.error) {
+        const grouped = (itemResult.data ?? []).reduce<Record<string, number[]>>((result, item) => {
+          result[item.list_id] = [...(result[item.list_id] ?? []), item.tmdb_id];
+          return result;
+        }, {});
+        setListItems(grouped);
+      }
+    });
+  }, [session]);
 
   useEffect(() => {
     try {
@@ -82,6 +132,10 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     if (error) {
       setErrorMsg(error.message);
     } else {
+      const reactionResult = await supabase.from('movie_reactions').select('tmdb_id,reaction').eq('user_id', session.user.id);
+      if (!reactionResult.error) {
+        setReactions(Object.fromEntries((reactionResult.data ?? []).map((row) => [String(row.tmdb_id), row.reaction as 'like' | 'dislike'])));
+      }
       const rows = (data as UserMovieRow[]) ?? [];
       const rowsMissingReleaseDate = rows.filter((row) => row.is_custom && !row.release_date);
       const releaseDates = await Promise.all(
@@ -126,7 +180,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
     const mergedClassics = classics.map((c) => {
       const row = rowByTmdbId.get(c.tmdb_id);
-      return row ? { ...c, is_watched: row.is_watched, user_rating: row.user_rating } : c;
+      return row ? { ...c, is_watched: row.is_watched, user_rating: row.user_rating, user_reaction: reactions[String(c.tmdb_id)] ?? null } : { ...c, user_reaction: reactions[String(c.tmdb_id)] ?? null };
     });
 
     const customMovies: Movie[] = allRows
@@ -143,12 +197,13 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         vote_average: r.vote_average ?? 0,
         vote_count: r.vote_count ?? 0,
         user_rating: r.user_rating,
+        user_reaction: reactions[String(r.tmdb_id)] ?? null,
         is_watched: r.is_watched,
         is_custom: true,
       }));
 
     return [...customMovies, ...mergedClassics];
-  }, [classics, guestRows, userRows]);
+  }, [classics, guestRows, reactions, userRows]);
 
   const watchedCount = mergedMovies.filter((m) => m.is_watched).length;
 
@@ -158,6 +213,12 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       if (filter === 'watchlist') return !movie.is_watched;
       if (filter === 'upcoming') return isUpcomingMovie(movie);
       return true;
+    }).filter((movie) => {
+      const listMatches = activeListId === null || (listItems[activeListId] ?? []).includes(movie.tmdb_id);
+      const yearMatches = decade === 'all' || (movie.release_year !== null && Math.floor(movie.release_year / 10) * 10 === Number(decade));
+      const genreMatches = genre === 'all' || movie.genres.includes(genre);
+      const ratingMatches = (movie.vote_average ?? 0) >= Number(minimumRating);
+      return listMatches && yearMatches && genreMatches && ratingMatches;
     });
 
     return [...filtered].sort((a, b) => {
@@ -165,7 +226,84 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       if (sort === 'rating') return (b.vote_average ?? 0) - (a.vote_average ?? 0);
       return (b.release_date ?? `${b.release_year ?? 0}-01-01`).localeCompare(a.release_date ?? `${a.release_year ?? 0}-01-01`);
     });
-  }, [filter, mergedMovies, sort]);
+  }, [activeListId, decade, filter, genre, listItems, mergedMovies, minimumRating, sort]);
+
+  const targetListName = lists.find((list) => list.id === targetListId)?.name ?? null;
+
+  async function createList(name: string) {
+    if (session) {
+      const { data, error } = await supabase.from('movie_lists').insert({ user_id: session.user.id, name }).select('id,name').single();
+      if (error) setErrorMsg(error.message);
+      else if (data) setLists((current) => [...current, data as MovieListOption]);
+      return;
+    }
+    const list = { id: `guest-${Date.now()}`, name };
+    const next = [...lists, list];
+    setLists(next);
+    window.localStorage.setItem(guestListsStorageKey, JSON.stringify(next));
+  }
+
+  async function deleteList(id: string) {
+    if (session) {
+      const { error } = await supabase.from('movie_lists').delete().eq('id', id).eq('user_id', session.user.id);
+      if (error) { setErrorMsg(error.message); return; }
+    }
+    const next = lists.filter((list) => list.id !== id);
+    const nextItems = { ...listItems };
+    delete nextItems[id];
+    setLists(next);
+    setListItems(nextItems);
+    setActiveListId(activeListId === id ? null : activeListId);
+    if (!session) {
+      window.localStorage.setItem(guestListsStorageKey, JSON.stringify(next));
+      window.localStorage.setItem(guestListItemsStorageKey, JSON.stringify(nextItems));
+    }
+  }
+
+  async function addToList(movie: Movie) {
+    if (!activeListId) return;
+    if (session) {
+      const { error } = await supabase.from('movie_list_items').upsert({ list_id: activeListId, tmdb_id: movie.tmdb_id });
+      if (error) { setErrorMsg(error.message); return; }
+    }
+    const nextItems = { ...listItems, [activeListId]: [...new Set([...(listItems[activeListId] ?? []), movie.tmdb_id])] };
+    setListItems(nextItems);
+    if (!session) window.localStorage.setItem(guestListItemsStorageKey, JSON.stringify(nextItems));
+  }
+
+  async function toggleListPublic(id: string, isPublic: boolean) {
+    if (session) {
+      const { error } = await supabase.from('movie_lists').update({ is_public: isPublic }).eq('id', id).eq('user_id', session.user.id);
+      if (error) { setErrorMsg(error.message); return; }
+    }
+    setLists((current) => current.map((list) => list.id === id ? { ...list, is_public: isPublic } : list));
+    if (isPublic) {
+      await navigator.clipboard?.writeText(`${window.location.origin}/lists/${id}`);
+      setErrorMsg('Liste geteilt: Der Link wurde kopiert.');
+    }
+  }
+
+  const decades = [...new Set(mergedMovies.map((movie) => movie.release_year ? Math.floor(movie.release_year / 10) * 10 : null).filter((value): value is number => value !== null))].sort((a, b) => b - a);
+  const genres = [...new Set(mergedMovies.flatMap((movie) => movie.genres))].sort((a, b) => a.localeCompare(b, 'de'));
+
+  function exportVisibleMovies() {
+    const header = ['Titel', 'Erscheinungsjahr', 'Kinostart', 'TMDB-Bewertung', 'Deine Bewertung', 'Gesehen'];
+    const rows = visibleMovies.map((movie) => [
+      movie.title,
+      movie.release_year ?? '',
+      movie.release_date ?? '',
+      movie.vote_average ?? '',
+      movie.user_rating ?? '',
+      movie.is_watched ? 'Ja' : 'Nein',
+    ]);
+    const csv = [header, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(';')).join('\n');
+    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'cinegrid-filme.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   const persistMovie = async (movie: Movie, isWatched: boolean, isCustom: boolean) => {
     const payload = {
@@ -304,6 +442,26 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     }
   };
 
+  const handleReactMovie = async (movie: Movie, reaction: 'like' | 'dislike') => {
+    if (isUpcomingMovie(movie)) return;
+    const key = String(movie.tmdb_id);
+    const nextReaction = reactions[key] === reaction ? null : reaction;
+    setReactions((current) => {
+      const next = { ...current };
+      if (nextReaction) next[key] = nextReaction;
+      else delete next[key];
+      if (!session) window.localStorage.setItem(guestReactionsStorageKey, JSON.stringify(next));
+      return next;
+    });
+
+    if (session) {
+      const result = nextReaction
+        ? await supabase.from('movie_reactions').upsert({ user_id: session.user.id, tmdb_id: movie.tmdb_id, reaction: nextReaction })
+        : await supabase.from('movie_reactions').delete().eq('user_id', session.user.id).eq('tmdb_id', movie.tmdb_id);
+      if (result.error) setErrorMsg(result.error.message);
+    }
+  };
+
   // 5) Eigenen Film über die Suche hinzufügen
   const handleAddMovie = async (tmdbId: number) => {
     const res = await fetch(`/api/tmdb/movie/${tmdbId}`);
@@ -345,6 +503,18 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     <div className="space-y-6">
       <SearchBar onAddMovie={handleAddMovie} disabled={false} />
 
+      <MovieStats movies={mergedMovies} />
+
+      <MovieAchievements movies={mergedMovies} />
+
+      <MoviePicks movies={mergedMovies} />
+
+      <MovieQuiz />
+
+      <UpcomingCalendar movies={mergedMovies} />
+
+      <MovieLists lists={lists} activeListId={activeListId} targetListId={targetListId} onSelect={setActiveListId} onTarget={setTargetListId} onCreate={createList} onDelete={deleteList} onTogglePublic={toggleListPublic} />
+
       <ProgressBar watched={watchedCount} total={mergedMovies.length} />
 
       {errorMsg && (
@@ -382,6 +552,23 @@ export default function MovieGrid({ session }: { session: Session | null }) {
             <option value="release">Neueste zuerst</option>
           </select>
         </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={decade} onChange={(event) => setDecade(event.target.value)} aria-label="Nach Jahrzehnt filtern" className="rounded-lg border border-cinema-border bg-cinema-surface2 px-2.5 py-2 text-xs text-white outline-none focus:border-cinema-accent">
+            <option value="all">Alle Jahrzehnte</option>
+            {decades.map((value) => <option key={value} value={value}>{value}er</option>)}
+          </select>
+          <select value={genre} onChange={(event) => setGenre(event.target.value)} aria-label="Nach Genre filtern" className="max-w-40 rounded-lg border border-cinema-border bg-cinema-surface2 px-2.5 py-2 text-xs text-white outline-none focus:border-cinema-accent">
+            <option value="all">Alle Genres</option>
+            {genres.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+          <select value={minimumRating} onChange={(event) => setMinimumRating(event.target.value)} aria-label="Mindestbewertung wählen" className="rounded-lg border border-cinema-border bg-cinema-surface2 px-2.5 py-2 text-xs text-white outline-none focus:border-cinema-accent">
+            <option value="0">Jede Bewertung</option>
+            {[5, 6, 7, 8, 9].map((value) => <option key={value} value={value}>Ab {value}/10</option>)}
+          </select>
+          <button type="button" onClick={exportVisibleMovies} title="Sichtbare Filme als CSV exportieren" className="inline-flex items-center gap-1.5 rounded-lg border border-cinema-border px-2.5 py-2 text-xs text-cinema-muted transition-colors hover:border-cinema-accent hover:text-white">
+            <Download size={14} /> CSV
+          </button>
+        </div>
       </div>
 
       {loadingClassics || loadingUserData ? (
@@ -398,7 +585,10 @@ export default function MovieGrid({ session }: { session: Session | null }) {
               onToggleWatched={handleToggleWatched}
               onDeleteMovie={movie.is_custom ? handleDeleteMovie : undefined}
               onRateMovie={handleRateMovie}
+              onReactMovie={handleReactMovie}
               onSelectMovie={() => router.push(`/movie/${movie.tmdb_id}`)}
+              activeListName={targetListName}
+              onAddToList={addToList}
             />
           ))}
         </div>

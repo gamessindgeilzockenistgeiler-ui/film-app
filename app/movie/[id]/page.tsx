@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Clapperboard, Play, Star } from 'lucide-react';
-import { extractDirector, getMovieDetails } from '@/lib/tmdb';
+import { extractDirector, extractGermanCertification, extractYear, getMovieDetails } from '@/lib/tmdb';
 import { getMovieRatingSummary } from '@/lib/movieRatings';
 import { posterUrl } from '@/lib/posterUrl';
+import { CLASSICS, getClassicReason } from '@/lib/classics';
 
 interface MoviePageProps {
   params: { id: string };
@@ -56,6 +57,8 @@ export default async function MoviePage({ params }: MoviePageProps) {
   const releaseDate = movie.release_date
     ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' }).format(new Date(`${movie.release_date}T00:00:00`))
     : 'Unbekannt';
+  const certification = extractGermanCertification(movie);
+  const classicSeed = CLASSICS.find((classic) => classic.title === movie.title && classic.year === extractYear(movie.release_date));
   const hasSiteRating = siteRating.rating_count > 0;
   const hasTmdbRating = (movie.vote_average ?? 0) > 0;
   const combinedRating = hasSiteRating && hasTmdbRating
@@ -81,6 +84,8 @@ export default async function MoviePage({ params }: MoviePageProps) {
             <h1 className="mt-2 font-display text-5xl tracking-wide">{movie.title}</h1>
             <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-cinema-muted">
               <span>Kinostart: {releaseDate}</span>
+              {movie.runtime ? <span>· {Math.floor(movie.runtime / 60)} Std. {movie.runtime % 60} Min.</span> : null}
+              {certification ? <span className="rounded border border-cinema-gold/50 px-1.5 text-cinema-gold">FSK {certification}</span> : null}
               {hasTmdbRating ? <span className="inline-flex items-center gap-1 text-amber-300" title={`${movie.vote_count ?? 0} TMDB-Bewertungen`}><Star size={14} fill="currentColor" /> TMDB {movie.vote_average!.toFixed(1)}</span> : null}
               <span className="inline-flex items-center gap-1 text-cinema-accent" title={`${siteRating.rating_count} CineGrid-Bewertungen`}><Star size={14} /> CineGrid {hasSiteRating ? siteRating.average_rating.toFixed(1) : '—'}</span>
               {combinedRating ? <span className="inline-flex items-center gap-1 text-white"><Star size={14} fill="currentColor" /> Gesamt {combinedRating}</span> : null}
@@ -92,6 +97,7 @@ export default async function MoviePage({ params }: MoviePageProps) {
                 {movie.genres.map((genre) => <span key={genre.id} className="rounded-full border border-cinema-border bg-cinema-surface px-3 py-1 text-xs text-cinema-muted">{genre.name}</span>)}
               </div>
             )}
+            {classicSeed && <p className="mt-6 max-w-2xl rounded-xl border border-cinema-gold/20 bg-cinema-gold/5 p-4 text-sm leading-relaxed text-cinema-gold/90"><strong className="text-cinema-gold">Warum dieser Film?</strong> {getClassicReason(classicSeed.title, classicSeed.year)}</p>}
           </div>
         </div>
 

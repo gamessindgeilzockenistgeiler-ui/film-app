@@ -8,6 +8,23 @@ export interface ClassicSeed {
   year: number;
 }
 
+const classicReasons: Record<string, string> = {
+  'The Godfather': 'Ein meisterhaftes Familiendrama über Macht, Loyalität und die Kosten des Erbes.',
+  'Pulp Fiction': 'Nichtlineares Erzählen, ikonische Dialoge und ein Film, der seine eigene Sprache geschaffen hat.',
+  'The Matrix': 'Ein stilprägender Sci-Fi-Klassiker über Realität, Freiheit und die Macht von Entscheidungen.',
+  'Inception': 'Ein visuell präziser Mind-Bender, der Traumlogik in großes Blockbuster-Kino verwandelt.',
+  'The Shawshank Redemption': 'Eine zeitlose Geschichte über Hoffnung, Freundschaft und Durchhaltevermögen.',
+  'Dune': 'Ein modernes Science-Fiction-Epos mit gewaltiger Welt, politischer Tiefe und starken Bildern.',
+  'Parasite': 'Ein scharfer Genre-Mix über soziale Ungleichheit, der bis zur letzten Minute überrascht.',
+  'Spirited Away': 'Ein poetisches Animationsmeisterwerk über Mut, Identität und eine magische Zwischenwelt.',
+  'The Dark Knight': 'Ein intensives Comic-Drama, das moralische Fragen und großes Spannungskino verbindet.',
+  'Whiplash': 'Ein elektrisierendes Duell über Talent, Ehrgeiz und die Grenzen von Perfektion.',
+};
+
+export function getClassicReason(title: string, year: number): string {
+  return classicReasons[title] ?? `Ein prägender Film aus ${year}, den man als Filmfan gesehen haben sollte.`;
+}
+
 export const CLASSICS: ClassicSeed[] = [
   { title: 'The Godfather', year: 1972 },
   { title: 'The Godfather Part II', year: 1974 },

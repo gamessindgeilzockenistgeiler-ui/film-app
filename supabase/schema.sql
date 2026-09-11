@@ -62,6 +62,65 @@ create policy "Users can update own profile"
 
 create index if not exists idx_user_movies_user_id on public.user_movies (user_id);
 
+create table if not exists public.movie_reactions (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  tmdb_id    integer not null,
+  reaction   text not null check (reaction in ('like', 'dislike')),
+  created_at timestamptz not null default now(),
+  primary key (user_id, tmdb_id)
+);
+
+alter table public.movie_reactions enable row level security;
+
+drop policy if exists "Users can manage own movie reactions" on public.movie_reactions;
+create policy "Users can manage own movie reactions"
+  on public.movie_reactions for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Persönliche Listen wie "Lieblingsthriller" oder "2026 noch schauen".
+create table if not exists public.movie_lists (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  name        text not null check (char_length(trim(name)) between 1 and 80),
+  description text not null default '',
+  is_public   boolean not null default false,
+  created_at  timestamptz not null default now(),
+  unique (user_id, name)
+);
+
+create table if not exists public.movie_list_items (
+  list_id    uuid not null references public.movie_lists(id) on delete cascade,
+  tmdb_id    integer not null,
+  created_at timestamptz not null default now(),
+  primary key (list_id, tmdb_id)
+);
+
+alter table public.movie_lists enable row level security;
+alter table public.movie_list_items enable row level security;
+
+drop policy if exists "Users can manage own movie lists" on public.movie_lists;
+create policy "Users can manage own movie lists"
+  on public.movie_lists for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Anyone can view public movie lists" on public.movie_lists;
+create policy "Anyone can view public movie lists"
+  on public.movie_lists for select
+  using (is_public = true);
+
+drop policy if exists "Users can manage own movie list items" on public.movie_list_items;
+create policy "Users can manage own movie list items"
+  on public.movie_list_items for all
+  using (exists (select 1 from public.movie_lists where movie_lists.id = movie_list_items.list_id and movie_lists.user_id = auth.uid()))
+  with check (exists (select 1 from public.movie_lists where movie_lists.id = movie_list_items.list_id and movie_lists.user_id = auth.uid()));
+
+drop policy if exists "Anyone can view items in public movie lists" on public.movie_list_items;
+create policy "Anyone can view items in public movie lists"
+  on public.movie_list_items for select
+  using (exists (select 1 from public.movie_lists where movie_lists.id = movie_list_items.list_id and movie_lists.is_public = true));
+
 create or replace function public.set_updated_at()
 returns trigger as $$
 begin

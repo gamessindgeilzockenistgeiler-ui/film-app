@@ -61,6 +61,8 @@ interface MovieDetails extends Movie {
   release_date?: string;
   vote_average?: number;
   vote_count?: number;
+  runtime?: number | null;
+  certification?: string | null;
   cast?: CastMember[];
   crew?: CrewMember[];
   providers?: StreamingProvider[];
@@ -351,6 +353,8 @@ export default function MovieDetailModal({
                 <h3 className="text-2xl font-bold">{details.title}</h3>
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-cinema-muted">
                   <span>{details.release_year ?? '—'}</span>
+                  {details.runtime ? <span>· {Math.floor(details.runtime / 60)} Std. {details.runtime % 60} Min.</span> : null}
+                  {details.certification ? <span className="rounded border border-cinema-gold/50 px-1.5 text-cinema-gold">FSK {details.certification}</span> : null}
                   {hasTmdbRating && <span className="inline-flex items-center gap-1 text-amber-300" title={`${details.vote_count ?? 0} TMDB-Bewertungen`}><Star size={14} fill="currentColor" /> TMDB {details.vote_average!.toFixed(1)}</span>}
                   <span className="inline-flex items-center gap-1 text-cinema-accent" title={`${siteRating.rating_count} CineGrid-Bewertungen`}><Star size={14} /> CineGrid {hasSiteRating ? siteRating.average_rating.toFixed(1) : '—'}</span>
                   {combinedRating && <span className="inline-flex items-center gap-1 text-white"><Star size={14} fill="currentColor" /> Gesamt {combinedRating}</span>}

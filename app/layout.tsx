@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Bebas_Neue } from 'next/font/google';
+import PwaRegister from '@/components/PwaRegister';
 import './globals.css';
 
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de" className="dark">
       <body className={`${sans.variable} ${display.variable} bg-cinema-bg text-cinema-text font-sans antialiased min-h-screen bg-cinema-gradient`}>
+        <PwaRegister />
         {children}
       </body>
     </html>

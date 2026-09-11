@@ -33,6 +33,13 @@ export interface TmdbMovieFull {
   overview: string;
   vote_average?: number;
   vote_count?: number;
+  runtime?: number;
+  release_dates?: {
+    results?: {
+      iso_3166_1: string;
+      release_dates: { certification?: string; release_date: string; type: number }[];
+    }[];
+  };
   genres: { id: number; name: string }[];
   credits?: {
     crew: { id: number; job: string; department: string; name: string; profile_path: string | null }[];
@@ -124,7 +131,7 @@ export async function searchMovies(query: string, limit = 10): Promise<TmdbMovie
 export async function getMovieDetails(id: number): Promise<TmdbMovieFull | null> {
   // Alle öffentlich verfügbaren Detaildaten in einem gecachten TMDB-Request laden.
   const res = await fetch(
-    `${TMDB_BASE}/movie/${id}?append_to_response=credits,watch/providers,videos,images,similar,recommendations,reviews&language=de-DE`,
+    `${TMDB_BASE}/movie/${id}?append_to_response=credits,watch/providers,videos,images,similar,recommendations,reviews,release_dates&language=de-DE`,
     {
       headers: authHeaders(),
       next: { revalidate: 60 * 60 },
@@ -152,4 +159,9 @@ export function extractYear(dateStr?: string): number | null {
   if (!dateStr) return null;
   const year = parseInt(dateStr.slice(0, 4), 10);
   return isNaN(year) ? null : year;
+}
+
+export function extractGermanCertification(details: TmdbMovieFull): string | null {
+  const germanReleaseDates = details.release_dates?.results?.find((result) => result.iso_3166_1 === 'DE')?.release_dates ?? [];
+  return germanReleaseDates.find((release) => release.certification)?.certification || null;
 }

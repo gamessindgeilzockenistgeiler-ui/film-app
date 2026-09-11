@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMovieDetails, extractDirector, extractYear } from '@/lib/tmdb';
+import { getMovieDetails, extractDirector, extractGermanCertification, extractYear } from '@/lib/tmdb';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const tmdbId = parseInt(params.id, 10);
@@ -41,6 +41,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     director: extractDirector(details),
     vote_average: details.vote_average ?? 0, // 👈 TMDB Bewertung (z.B. 8.4)
     vote_count: details.vote_count ?? 0,     // 👈 Anzahl der Stimmen
+    runtime: details.runtime ?? null,
+    certification: extractGermanCertification(details),
     is_watched: false,
     is_custom: true,
     cast,

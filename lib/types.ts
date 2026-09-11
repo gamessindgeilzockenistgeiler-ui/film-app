@@ -5,9 +5,11 @@ export interface Movie {
   release_year: number | null;
   poster_path: string | null;
   overview: string;
+  why?: string;
   vote_average?: number;
   vote_count?: number;
   user_rating?: number | null;
+  user_reaction?: 'like' | 'dislike' | null;
   genres: string[];
   director: string | null;
   is_watched: boolean;
