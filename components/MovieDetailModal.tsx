@@ -437,7 +437,7 @@ export default function MovieDetailModal({
                     )}
                   </div>
                   <span className="text-xs font-semibold line-clamp-1">{actor.name}</span>
-                  <span className="text-[10px] text-cinema-muted line-clamp-1">{actor.character}</span>
+                  <span className="text-[10px] text-cinema-muted line-clamp-1">spielt {actor.character}</span>
                 </div>
               ))}
             </div>

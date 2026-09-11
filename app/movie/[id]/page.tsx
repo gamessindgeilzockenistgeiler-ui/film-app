@@ -98,7 +98,7 @@ export default async function MoviePage({ params }: MoviePageProps) {
                     {actor.profile_path && <Image src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`} alt={actor.name} fill className="object-cover" sizes="80px" />}
                   </div>
                   <p className="mt-2 line-clamp-1 text-xs font-semibold text-white">{actor.name}</p>
-                  <p className="line-clamp-1 text-[11px] text-cinema-muted">{actor.character}</p>
+                  <p className="line-clamp-1 text-[11px] text-cinema-muted">spielt {actor.character}</p>
                 </div>
               ))}
             </div>

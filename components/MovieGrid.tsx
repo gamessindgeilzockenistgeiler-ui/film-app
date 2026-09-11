@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 import { Loader2, ListFilter } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import ProgressBar from './ProgressBar';
 import SearchBar from './SearchBar';
 import MovieCard from './MovieCard';
 import type { Movie } from '@/lib/types';
-import MovieDetailModal from './MovieDetailModal';
 import { isUpcomingMovie } from '@/lib/movieAvailability';
 
 type Filter = 'all' | 'watched' | 'watchlist' | 'upcoming';
@@ -33,6 +33,7 @@ interface UserMovieRow {
 }
 
 export default function MovieGrid({ session }: { session: Session | null }) {
+  const router = useRouter();
   const [classics, setClassics] = useState<Movie[]>([]);
   const [userRows, setUserRows] = useState<UserMovieRow[]>([]);
   const [guestRows, setGuestRows] = useState<UserMovieRow[]>([]);
@@ -41,7 +42,6 @@ export default function MovieGrid({ session }: { session: Session | null }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('title');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
   useEffect(() => {
     try {
@@ -392,15 +392,10 @@ export default function MovieGrid({ session }: { session: Session | null }) {
               onToggleWatched={handleToggleWatched}
               onDeleteMovie={movie.is_custom ? handleDeleteMovie : undefined}
               onRateMovie={handleRateMovie}
-              onSelectMovie={() => setSelectedMovie(movie)}
+              onSelectMovie={() => router.push(`/movie/${movie.tmdb_id}`)}
             />
           ))}
         </div>
-      )}
-
-      {/* Modal sauber am Ende platziert */}
-      {selectedMovie && (
-        <MovieDetailModal movie={selectedMovie} onClose={() => setSelectedMovie(null)} />
       )}
     </div>
   );
