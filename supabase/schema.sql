@@ -121,6 +121,7 @@ $$;
 
 revoke all on function public.get_movie_rating_summary(integer) from public;
 grant execute on function public.get_movie_rating_summary(integer) to anon, authenticated;
+notify pgrst, 'reload schema';
 
 alter table public.user_movies enable row level security;
 
