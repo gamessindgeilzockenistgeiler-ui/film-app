@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Clapperboard, Play, Star } from 'lucide-react';
 import { extractDirector, getMovieDetails } from '@/lib/tmdb';
+import { getMovieRatingSummary } from '@/lib/movieRatings';
 import { posterUrl } from '@/lib/posterUrl';
 
 interface MoviePageProps {
@@ -32,7 +33,11 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
 }
 
 export default async function MoviePage({ params }: MoviePageProps) {
-  const movie = await loadMovie(params.id);
+  const tmdbId = Number.parseInt(params.id, 10);
+  const [movie, siteRating] = await Promise.all([
+    loadMovie(params.id),
+    Number.isInteger(tmdbId) ? getMovieRatingSummary(tmdbId) : Promise.resolve({ average_rating: 0, rating_count: 0 }),
+  ]);
 
   if (!movie) {
     return (
@@ -51,6 +56,11 @@ export default async function MoviePage({ params }: MoviePageProps) {
   const releaseDate = movie.release_date
     ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' }).format(new Date(`${movie.release_date}T00:00:00`))
     : 'Unbekannt';
+  const hasSiteRating = siteRating.rating_count > 0;
+  const hasTmdbRating = (movie.vote_average ?? 0) > 0;
+  const combinedRating = hasSiteRating && hasTmdbRating
+    ? ((siteRating.average_rating + (movie.vote_average ?? 0)) / 2).toFixed(1)
+    : null;
 
   return (
     <main className="min-h-screen bg-cinema-bg px-4 py-8 text-white sm:px-6 lg:px-8">
@@ -71,7 +81,9 @@ export default async function MoviePage({ params }: MoviePageProps) {
             <h1 className="mt-2 font-display text-5xl tracking-wide">{movie.title}</h1>
             <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-cinema-muted">
               <span>Kinostart: {releaseDate}</span>
-              {movie.vote_average ? <span className="inline-flex items-center gap-1 text-amber-300"><Star size={14} fill="currentColor" /> {movie.vote_average.toFixed(1)}/10</span> : null}
+              {hasTmdbRating ? <span className="inline-flex items-center gap-1 text-amber-300" title={`${movie.vote_count ?? 0} TMDB-Bewertungen`}><Star size={14} fill="currentColor" /> TMDB {movie.vote_average!.toFixed(1)}</span> : null}
+              <span className="inline-flex items-center gap-1 text-cinema-accent" title={`${siteRating.rating_count} CineGrid-Bewertungen`}><Star size={14} /> CineGrid {hasSiteRating ? siteRating.average_rating.toFixed(1) : '—'}</span>
+              {combinedRating ? <span className="inline-flex items-center gap-1 text-white"><Star size={14} fill="currentColor" /> Gesamt {combinedRating}</span> : null}
               {extractDirector(movie) ? <span>Regie: {extractDirector(movie)}</span> : null}
             </p>
             <p className="mt-8 max-w-2xl leading-relaxed text-cinema-muted">{movie.overview || 'Keine Beschreibung verfügbar.'}</p>
@@ -93,13 +105,13 @@ export default async function MoviePage({ params }: MoviePageProps) {
             <h2 className="text-xl font-semibold text-white">Besetzung</h2>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
               {movie.credits.cast.slice(0, 12).map((actor) => (
-                <div key={actor.id} className="rounded-xl border border-cinema-border bg-cinema-surface p-3 text-center">
+                <Link href={`/person/${actor.id}`} key={actor.id} className="rounded-xl border border-cinema-border bg-cinema-surface p-3 text-center transition-colors hover:border-cinema-accent">
                   <div className="relative mx-auto aspect-square w-20 overflow-hidden rounded-full bg-cinema-surface2">
                     {actor.profile_path && <Image src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`} alt={actor.name} fill className="object-cover" sizes="80px" />}
                   </div>
                   <p className="mt-2 line-clamp-1 text-xs font-semibold text-white">{actor.name}</p>
                   <p className="line-clamp-1 text-[11px] text-cinema-muted">spielt {actor.character}</p>
-                </div>
+                </Link>
               ))}
             </div>
           </section>

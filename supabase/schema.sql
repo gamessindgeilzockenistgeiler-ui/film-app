@@ -99,6 +99,26 @@ create trigger trg_prevent_unreleased_movie_actions
   for each row
   execute function public.prevent_unreleased_movie_actions();
 
+-- Öffentliche Durchschnittswerte der CineGrid-Nutzerbewertungen.
+-- Kommende Filme werden unabhängig von den RLS-Regeln nicht berücksichtigt.
+create or replace function public.get_movie_rating_summary(p_tmdb_id integer)
+returns table (average_rating numeric, rating_count integer)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    coalesce(round(avg(user_rating)::numeric, 2), 0) as average_rating,
+    count(user_rating)::integer as rating_count
+  from public.user_movies
+  where tmdb_id = p_tmdb_id
+    and user_rating is not null
+    and (release_date is null or release_date <= current_date);
+$$;
+
+revoke all on function public.get_movie_rating_summary(integer) from public;
+grant execute on function public.get_movie_rating_summary(integer) to anon, authenticated;
+
 alter table public.user_movies enable row level security;
 
 drop policy if exists "Users can view own movies" on public.user_movies;

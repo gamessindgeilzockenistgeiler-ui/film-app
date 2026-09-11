@@ -81,6 +81,24 @@ export interface TmdbMovieRecommendation {
   vote_average?: number;
 }
 
+export interface TmdbPersonCredit {
+  id: number;
+  title?: string;
+  character?: string;
+  release_date?: string;
+  poster_path: string | null;
+  vote_average?: number;
+  media_type: 'movie' | 'tv';
+}
+
+export interface TmdbPerson {
+  id: number;
+  name: string;
+  biography?: string;
+  profile_path: string | null;
+  combined_credits?: { cast?: TmdbPersonCredit[]; crew?: TmdbPersonCredit[] };
+}
+
 export async function searchMovie(query: string, year?: number): Promise<TmdbMovieSummary | null> {
   const params = new URLSearchParams({ query, include_adult: 'false', language: 'de-DE' });
   if (year) params.set('year', String(year));
@@ -111,6 +129,15 @@ export async function getMovieDetails(id: number): Promise<TmdbMovieFull | null>
       headers: authHeaders(),
       next: { revalidate: 60 * 60 * 24 },
     }
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getPersonDetails(id: number): Promise<TmdbPerson | null> {
+  const res = await fetch(
+    `${TMDB_BASE}/person/${id}?append_to_response=combined_credits&language=de-DE`,
+    { headers: authHeaders(), next: { revalidate: 60 * 60 * 24 } }
   );
   if (!res.ok) return null;
   return res.json();

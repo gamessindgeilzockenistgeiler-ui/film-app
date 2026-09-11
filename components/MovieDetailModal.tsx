@@ -52,6 +52,11 @@ interface TmdbReview {
   url: string;
 }
 
+interface MovieRatingSummary {
+  average_rating: number;
+  rating_count: number;
+}
+
 interface MovieDetails extends Movie {
   release_date?: string;
   vote_average?: number;
@@ -97,6 +102,7 @@ export default function MovieDetailModal({
   const [commentError, setCommentError] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [myReactions, setMyReactions] = useState<Record<string, 'like' | 'dislike'>>({});
+  const [siteRating, setSiteRating] = useState<MovieRatingSummary>({ average_rating: 0, rating_count: 0 });
 
   useEffect(() => {
     // TMDB Details (Cast, Streaming & Trailer) nachladen
@@ -126,6 +132,16 @@ export default function MovieDetailModal({
     }
     fetchDetails();
   }, [movie]);
+
+  useEffect(() => {
+    fetch(`/api/movies/${movie.tmdb_id}/rating`)
+      .then((response) => response.json())
+      .then((data) => setSiteRating({
+        average_rating: Number(data.average_rating ?? 0),
+        rating_count: Number(data.rating_count ?? 0),
+      }))
+      .catch(() => setSiteRating({ average_rating: 0, rating_count: 0 }));
+  }, [movie.tmdb_id]);
 
   useEffect(() => {
     async function fetchComments() {
@@ -279,6 +295,11 @@ export default function MovieDetailModal({
     ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }).format(releaseDate)
     : null;
   const ticketSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${details.title} Kino Tickets kaufen`)}`;
+  const hasSiteRating = siteRating.rating_count > 0;
+  const hasTmdbRating = (details.vote_average ?? 0) > 0;
+  const combinedRating = hasSiteRating && hasTmdbRating
+    ? ((siteRating.average_rating + (details.vote_average ?? 0)) / 2).toFixed(1)
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fadeIn">
@@ -330,11 +351,9 @@ export default function MovieDetailModal({
                 <h3 className="text-2xl font-bold">{details.title}</h3>
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-cinema-muted">
                   <span>{details.release_year ?? '—'}</span>
-                  {details.vote_average !== undefined && (
-                    <span className="inline-flex items-center gap-1 text-amber-300" title={`${details.vote_count ?? 0} Bewertungen`}>
-                      <Star size={14} fill="currentColor" /> {details.vote_average.toFixed(1)}
-                    </span>
-                  )}
+                  {hasTmdbRating && <span className="inline-flex items-center gap-1 text-amber-300" title={`${details.vote_count ?? 0} TMDB-Bewertungen`}><Star size={14} fill="currentColor" /> TMDB {details.vote_average!.toFixed(1)}</span>}
+                  <span className="inline-flex items-center gap-1 text-cinema-accent" title={`${siteRating.rating_count} CineGrid-Bewertungen`}><Star size={14} /> CineGrid {hasSiteRating ? siteRating.average_rating.toFixed(1) : '—'}</span>
+                  {combinedRating && <span className="inline-flex items-center gap-1 text-white"><Star size={14} fill="currentColor" /> Gesamt {combinedRating}</span>}
                   {details.director && <span>· Regie: {details.director}</span>}
                 </p>
               </div>
@@ -423,7 +442,7 @@ export default function MovieDetailModal({
           ) : details.cast && details.cast.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {details.cast.slice(0, 5).map((actor) => (
-                <div key={actor.id} className="flex flex-col items-center text-center rounded-xl bg-cinema-surface2 p-2 border border-cinema-border">
+                <Link key={actor.id} href={`/person/${actor.id}`} className="flex flex-col items-center text-center rounded-xl bg-cinema-surface2 p-2 border border-cinema-border transition-colors hover:border-cinema-accent">
                   <div className="relative h-16 w-16 rounded-full overflow-hidden mb-1.5 bg-black/40">
                     {actor.profile_path ? (
                       <Image
@@ -438,7 +457,7 @@ export default function MovieDetailModal({
                   </div>
                   <span className="text-xs font-semibold line-clamp-1">{actor.name}</span>
                   <span className="text-[10px] text-cinema-muted line-clamp-1">spielt {actor.character}</span>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
