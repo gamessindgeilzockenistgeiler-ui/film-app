@@ -48,8 +48,7 @@ export default function ImpressumPage() {
                 <h3 className="flex items-center gap-2 font-medium text-white">
                   <Mail size={15} className="text-cinema-accent" /> Kontakt
                 </h3>
-                <p className="mt-1">E-Mail: [geschützte E-Mail-Adresse]</p>
-                <p>Kontakt-Adresse: [geschützte Kontakt-Adresse]</p>
+                <p className="mt-1">E-Mail: [cinegridcg@gmail.com]</p>
               </div>
             </div>
           </section>
