@@ -66,8 +66,8 @@ export default function Home() {
 
         {!session && checkedAuth && (
           <div className="mb-6 rounded-xl border border-cinema-gold/30 bg-cinema-gold/10 px-4 py-3 text-sm text-cinema-gold">
-            Du bist nicht angemeldet — du kannst die Klassiker-Liste durchstöbern, aber melde dich an, um deinen
-            Fortschritt und eigene Filme dauerhaft zu speichern.
+            Du bist nicht angemeldet — du kannst Filme suchen, hinzufügen und lokal im Browser verfolgen. Mit einem
+            Konto werden Watchlist und Fortschritt geräteübergreifend gespeichert.
           </div>
         )}
 
@@ -84,6 +84,9 @@ export default function Home() {
         CineGrid — Deine Filme. Deine Watchlist. Dein nächster Lieblingsfilm.
         <Link href="/impressum" className="ml-3 text-cinema-accent transition-colors hover:text-white">
           Impressum
+        </Link>
+        <Link href="/datenschutz" className="ml-3 text-cinema-accent transition-colors hover:text-white">
+          Datenschutz
         </Link>
       </footer>
     </>

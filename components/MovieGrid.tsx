@@ -13,8 +13,10 @@ import { isUpcomingMovie } from '@/lib/movieAvailability';
 
 type Filter = 'all' | 'watched' | 'watchlist' | 'upcoming';
 type Sort = 'title' | 'rating' | 'release';
+const guestMoviesStorageKey = 'cinegrid_guest_movies';
 
 interface UserMovieRow {
+  user_id?: string;
   tmdb_id: number;
   title: string;
   release_date: string | null;
@@ -33,12 +35,22 @@ interface UserMovieRow {
 export default function MovieGrid({ session }: { session: Session | null }) {
   const [classics, setClassics] = useState<Movie[]>([]);
   const [userRows, setUserRows] = useState<UserMovieRow[]>([]);
+  const [guestRows, setGuestRows] = useState<UserMovieRow[]>([]);
   const [loadingClassics, setLoadingClassics] = useState(true);
   const [loadingUserData, setLoadingUserData] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('title');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+
+  useEffect(() => {
+    try {
+      const storedMovies = window.localStorage.getItem(guestMoviesStorageKey);
+      if (storedMovies) setGuestRows(JSON.parse(storedMovies) as UserMovieRow[]);
+    } catch {
+      setGuestRows([]);
+    }
+  }, []);
 
   // 1) Klassiker-Liste laden (einmalig, unabhängig vom Login-Status)
   useEffect(() => {
@@ -101,16 +113,17 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
 
-  // 3) Klassiker + persönlichen Watched-Status zusammenführen; eigene Filme anhängen
+  // 3) Klassiker + persönlichen Status zusammenführen; eigene Filme anhängen
   const mergedMovies: Movie[] = useMemo(() => {
-    const rowByTmdbId = new Map(userRows.map((r) => [r.tmdb_id, r]));
+    const allRows = [...guestRows, ...userRows];
+    const rowByTmdbId = new Map(allRows.map((r) => [r.tmdb_id, r]));
 
     const mergedClassics = classics.map((c) => {
       const row = rowByTmdbId.get(c.tmdb_id);
       return row ? { ...c, is_watched: row.is_watched, user_rating: row.user_rating } : c;
     });
 
-    const customMovies: Movie[] = userRows
+    const customMovies: Movie[] = allRows
       .filter((r) => r.is_custom)
       .map((r) => ({
         tmdb_id: r.tmdb_id,
@@ -129,7 +142,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       }));
 
     return [...customMovies, ...mergedClassics];
-  }, [classics, userRows]);
+  }, [classics, guestRows, userRows]);
 
   const watchedCount = mergedMovies.filter((m) => m.is_watched).length;
 
@@ -166,6 +179,29 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       is_custom: isCustom,
     };
 
+    if (!session) {
+      const guestRow: UserMovieRow = {
+        ...payload,
+        user_id: 'guest',
+        release_date: payload.release_date,
+        overview: payload.overview,
+        genres: payload.genres,
+        vote_average: payload.vote_average,
+        vote_count: payload.vote_count,
+        user_rating: payload.user_rating,
+        is_watched: payload.is_watched,
+        is_custom: payload.is_custom,
+      };
+      setGuestRows((current) => {
+        const next = current.some((row) => row.tmdb_id === guestRow.tmdb_id)
+          ? current.map((row) => row.tmdb_id === guestRow.tmdb_id ? guestRow : row)
+          : [...current, guestRow];
+        window.localStorage.setItem(guestMoviesStorageKey, JSON.stringify(next));
+        return next;
+      });
+      return { error: null };
+    }
+
     const candidatePayload: Record<string, unknown> = { ...payload };
     let result = await supabase.from('user_movies').upsert(candidatePayload, { onConflict: 'user_id,tmdb_id' });
 
@@ -189,13 +225,9 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       setErrorMsg('Dieser Film ist noch nicht erschienen und kann noch nicht als gesehen markiert werden.');
       return;
     }
-    if (!session) {
-      setErrorMsg('Bitte melde dich an, um Filme als gesehen zu markieren.');
-      return;
-    }
     const nextWatched = !movie.is_watched;
 
-    setUserRows((prev) => {
+    const updateRows = (prev: UserMovieRow[]) => {
       const exists = prev.find((r) => r.tmdb_id === movie.tmdb_id);
       if (exists) {
         return prev.map((r) => (r.tmdb_id === movie.tmdb_id ? { ...r, is_watched: nextWatched } : r));
@@ -218,7 +250,9 @@ export default function MovieGrid({ session }: { session: Session | null }) {
           is_custom: movie.is_custom,
         },
       ];
-    });
+    };
+    if (session) setUserRows(updateRows);
+    else setGuestRows(updateRows);
 
       const { error } = await persistMovie(movie, nextWatched, movie.is_custom);
 
@@ -233,13 +267,8 @@ export default function MovieGrid({ session }: { session: Session | null }) {
       setErrorMsg('Dieser Film ist noch nicht erschienen und kann noch nicht bewertet werden.');
       return;
     }
-    if (!session) {
-      setErrorMsg('Bitte melde dich an, um Filme zu bewerten.');
-      return;
-    }
-
     const ratedMovie = { ...movie, user_rating: rating };
-    setUserRows((current) => {
+    const updateRows = (current: UserMovieRow[]) => {
       const exists = current.some((row) => row.tmdb_id === movie.tmdb_id);
       if (exists) return current.map((row) => (row.tmdb_id === movie.tmdb_id ? { ...row, user_rating: rating } : row));
       return [...current, {
@@ -257,7 +286,9 @@ export default function MovieGrid({ session }: { session: Session | null }) {
         is_watched: movie.is_watched,
         is_custom: movie.is_custom,
       }];
-    });
+    };
+    if (session) setUserRows(updateRows);
+    else setGuestRows(updateRows);
 
     const { error } = await persistMovie(ratedMovie, movie.is_watched, movie.is_custom);
 
@@ -269,10 +300,6 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
   // 5) Eigenen Film über die Suche hinzufügen
   const handleAddMovie = async (tmdbId: number) => {
-    if (!session) {
-      setErrorMsg('Bitte melde dich an, um Filme hinzuzufügen.');
-      return;
-    }
     const res = await fetch(`/api/tmdb/movie/${tmdbId}`);
     const data = await res.json();
     if (!data.movie) {
@@ -285,7 +312,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
     if (error) {
       setErrorMsg(error.message);
-    } else {
+    } else if (session) {
       await loadUserData();
     }
   };
@@ -310,7 +337,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
 
   return (
     <div className="space-y-6">
-      <SearchBar onAddMovie={handleAddMovie} disabled={!session} />
+      <SearchBar onAddMovie={handleAddMovie} disabled={false} />
 
       <ProgressBar watched={watchedCount} total={mergedMovies.length} />
 

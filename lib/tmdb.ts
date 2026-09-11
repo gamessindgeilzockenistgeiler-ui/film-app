@@ -35,13 +35,16 @@ export interface TmdbMovieFull {
   vote_count?: number;
   genres: { id: number; name: string }[];
   credits?: {
-    crew: { job: string; name: string }[];
+    crew: { id: number; job: string; department: string; name: string; profile_path: string | null }[];
     cast: { id: number; name: string; character: string; profile_path: string | null }[];
   };
   'watch/providers'?: {
     results?: {
       DE?: {
-        flatrate?: { provider_id: number; provider_name: string; logo_path: string }[];
+        link?: string;
+        flatrate?: TmdbProvider[];
+        rent?: TmdbProvider[];
+        buy?: TmdbProvider[];
       };
     };
   };
@@ -52,6 +55,30 @@ export interface TmdbMovieFull {
       key: string;
     }[];
   };
+  images?: {
+    backdrops?: { file_path: string; width: number; height: number }[];
+    posters?: { file_path: string; width: number; height: number }[];
+  };
+  similar?: { results?: TmdbMovieRecommendation[] };
+  recommendations?: { results?: TmdbMovieRecommendation[] };
+  reviews?: {
+    results?: { id: string; author: string; content: string; created_at: string; url: string }[];
+  };
+}
+
+export interface TmdbProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority?: number;
+}
+
+export interface TmdbMovieRecommendation {
+  id: number;
+  title: string;
+  release_date?: string;
+  poster_path: string | null;
+  vote_average?: number;
 }
 
 export async function searchMovie(query: string, year?: number): Promise<TmdbMovieSummary | null> {
@@ -77,9 +104,9 @@ export async function searchMovies(query: string, limit = 10): Promise<TmdbMovie
 }
 
 export async function getMovieDetails(id: number): Promise<TmdbMovieFull | null> {
-  // credits, watch/providers und videos direkt zusammen abfragen
+  // Alle öffentlich verfügbaren Detaildaten in einem gecachten TMDB-Request laden.
   const res = await fetch(
-    `${TMDB_BASE}/movie/${id}?append_to_response=credits,watch/providers,videos&language=de-DE`,
+    `${TMDB_BASE}/movie/${id}?append_to_response=credits,watch/providers,videos,images,similar,recommendations,reviews&language=de-DE`,
     {
       headers: authHeaders(),
       next: { revalidate: 60 * 60 * 24 },

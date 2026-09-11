@@ -20,6 +20,36 @@ interface StreamingProvider {
   provider_id: number;
   provider_name: string;
   logo_path: string;
+  availability: 'stream' | 'rent' | 'buy';
+}
+
+interface CrewMember {
+  id: number;
+  name: string;
+  job: string;
+  department: string;
+}
+
+interface GalleryImage {
+  file_path: string;
+  width: number;
+  height: number;
+}
+
+interface SimilarMovie {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  release_date?: string;
+  vote_average?: number;
+}
+
+interface TmdbReview {
+  id: string;
+  author: string;
+  content: string;
+  created_at: string;
+  url: string;
 }
 
 interface MovieDetails extends Movie {
@@ -27,7 +57,12 @@ interface MovieDetails extends Movie {
   vote_average?: number;
   vote_count?: number;
   cast?: CastMember[];
+  crew?: CrewMember[];
   providers?: StreamingProvider[];
+  provider_link?: string | null;
+  gallery?: GalleryImage[];
+  similar?: SimilarMovie[];
+  reviews?: TmdbReview[];
   trailer_key?: string | null;
 }
 
@@ -74,7 +109,12 @@ export default function MovieDetailModal({
             ...movie,
             ...data.movie,
             cast: data.movie.cast || [],
+            crew: data.movie.crew || [],
             providers: data.movie.providers || [],
+            provider_link: data.movie.provider_link || null,
+            gallery: data.movie.gallery || [],
+            similar: data.movie.similar || [],
+            reviews: data.movie.reviews || [],
             trailer_key: data.movie.trailer_key || null,
           });
         }
@@ -320,9 +360,12 @@ export default function MovieDetailModal({
                 </div>
               )}
 
-              <p className="text-xs leading-relaxed text-cinema-muted">
-                {details.overview || 'Keine Beschreibung verfügbar.'}
-              </p>
+              <div>
+                <h4 className="text-sm font-semibold text-cinema-accent">Handlung</h4>
+                <p className="mt-1 text-xs leading-relaxed text-cinema-muted">
+                  {details.overview || 'Keine Beschreibung verfügbar.'}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -335,9 +378,10 @@ export default function MovieDetailModal({
           {loading ? (
             <p className="text-xs text-cinema-muted">Lade Streaming-Anbieter...</p>
           ) : details.providers && details.providers.length > 0 ? (
-            <div className="flex flex-wrap gap-3">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-3">
               {details.providers.map((p) => (
-                <div key={p.provider_id} className="flex items-center gap-2 rounded-lg bg-cinema-surface2 px-3 py-1.5 border border-cinema-border">
+                <div key={`${p.availability}-${p.provider_id}`} className="flex items-center gap-2 rounded-lg bg-cinema-surface2 px-3 py-1.5 border border-cinema-border">
                   {p.logo_path && (
                     <img
                       src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
@@ -345,9 +389,11 @@ export default function MovieDetailModal({
                       className="h-5 w-5 rounded-md object-cover"
                     />
                   )}
-                  <span className="text-xs font-medium">{p.provider_name}</span>
+                  <span className="text-xs font-medium">{p.provider_name} · {p.availability === 'stream' ? 'Stream' : p.availability === 'rent' ? 'Leihen' : 'Kaufen'}</span>
                 </div>
               ))}
+              </div>
+              {details.provider_link && <a href={details.provider_link} target="_blank" rel="noreferrer" className="text-xs text-cinema-accent hover:text-white">Alle Anbieter bei TMDB anzeigen</a>}
             </div>
           ) : isUpcoming && formattedReleaseDate ? (
             <div className="rounded-xl border border-cinema-accent/40 bg-cinema-surface2 p-4">
@@ -399,6 +445,69 @@ export default function MovieDetailModal({
             <p className="text-xs text-cinema-muted">Keine Cast-Informationen verfügbar.</p>
           )}
         </div>
+
+        {details.crew && details.crew.length > 0 && (
+          <div className="mt-6 border-t border-cinema-border pt-4">
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-cinema-accent">
+              <Users size={15} /> Vollständige Crew
+            </h4>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {details.crew.filter((member, index, crew) => crew.findIndex((candidate) => candidate.id === member.id && candidate.job === member.job) === index).slice(0, 24).map((member) => (
+                <div key={`${member.id}-${member.job}`} className="flex items-center justify-between gap-3 rounded-lg bg-cinema-surface2 px-3 py-2 text-xs">
+                  <span className="font-medium text-white">{member.name}</span>
+                  <span className="text-right text-cinema-muted">{member.job}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {details.gallery && details.gallery.length > 0 && (
+          <div className="mt-6 border-t border-cinema-border pt-4">
+            <h4 className="mb-3 text-sm font-semibold text-cinema-accent">Bildergalerie</h4>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {details.gallery.map((image) => (
+                <div key={image.file_path} className="relative aspect-video overflow-hidden rounded-lg bg-cinema-surface2">
+                  <Image src={`https://image.tmdb.org/t/p/w780${image.file_path}`} alt={`Szene aus ${details.title}`} fill className="object-cover" sizes="(max-width: 640px) 50vw, 25vw" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {details.similar && details.similar.length > 0 && (
+          <div className="mt-6 border-t border-cinema-border pt-4">
+            <h4 className="mb-3 text-sm font-semibold text-cinema-accent">Ähnliche Filme</h4>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {details.similar.map((similar) => (
+                <Link key={similar.id} href={`/movie/${similar.id}`} className="group rounded-lg border border-cinema-border bg-cinema-surface2 p-2 transition-colors hover:border-cinema-accent">
+                  <div className="relative aspect-[2/3] overflow-hidden rounded-md bg-cinema-surface">
+                    {similar.poster_path && <Image src={`https://image.tmdb.org/t/p/w342${similar.poster_path}`} alt={similar.title} fill className="object-cover transition-transform group-hover:scale-105" sizes="(max-width: 640px) 45vw, 150px" />}
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-xs font-medium text-white">{similar.title}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {details.reviews && details.reviews.length > 0 && (
+          <div className="mt-6 border-t border-cinema-border pt-4">
+            <h4 className="mb-3 text-sm font-semibold text-cinema-accent">Reviews von TMDB</h4>
+            <div className="space-y-3">
+              {details.reviews.map((review) => (
+                <article key={review.id} className="rounded-xl bg-cinema-surface2 p-3">
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="font-semibold text-white">{review.author}</span>
+                    <time className="text-cinema-muted">{new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(review.created_at))}</time>
+                  </div>
+                  <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-xs leading-relaxed text-cinema-muted">{review.content}</p>
+                  <a href={review.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[11px] text-cinema-accent hover:text-white">Review vollständig lesen</a>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Community-Diskussion */}
         <div className="mt-6 border-t border-cinema-border pt-4">
