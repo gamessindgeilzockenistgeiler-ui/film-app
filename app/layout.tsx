@@ -4,18 +4,47 @@ import './globals.css';
 
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const display = Bebas_Neue({ subsets: ['latin'], weight: '400', variable: '--font-display' });
+const brandTagline = 'CineGrid – Deine digitale Film-Datenbank und Watchlist für cineastische Meisterwerke.';
 
 export const metadata: Metadata = {
   title: 'CineGrid – Entdecke deine Lieblingsfilme & Streaming-Highlights',
-  description: 'Entdecke Lieblingsfilme, verwalte deine persönliche Watchlist und finde die besten Streaming-Highlights mit CineGrid.',
+  description: brandTagline,
   keywords: [
     'CineGrid',
     'Filme entdecken',
-    'Watchlist',
+    'Film-Watchlist',
     'Lieblingsfilme',
+    'digitale Film-Datenbank',
+    'cineastische Meisterwerke',
+    'Klassiker streamen',
+    'Filmklassiker',
+    'Klassiker Filme',
+    'beste Filme aller Zeiten',
+    'Filme verwalten',
+    'Filmliste',
+    'Filmtipps',
     'Streaming-Highlights',
+    'Streaming Filme',
+    'Streaming Empfehlungen',
     'Filmempfehlungen',
+    'Filme online entdecken',
+    'Kino',
     'Kinofilme',
+    'neue Kinofilme',
+    'kommende Filme',
+    'Filmübersicht',
+    'Filmdatenbank',
+    'Filmtracking',
+    'Filme tracken',
+    'Watchlist App',
+    'Film-App',
+    'TMDB Filme',
+    'TMDB Movie Database',
+    'cinematic database',
+    'movie database',
+    'movie watchlist',
+    'film tracker',
+    'cinema tracker',
   ],
   openGraph: {
     type: 'website',
@@ -23,7 +52,7 @@ export const metadata: Metadata = {
     url: 'https://cinegrid.de',
     siteName: 'CineGrid',
     title: 'CineGrid – Entdecke deine Lieblingsfilme & Streaming-Highlights',
-    description: 'Entdecke Lieblingsfilme, verwalte deine persönliche Watchlist und finde die besten Streaming-Highlights mit CineGrid.',
+    description: brandTagline,
   },
   alternates: {
     canonical: 'https://cinegrid.de',
