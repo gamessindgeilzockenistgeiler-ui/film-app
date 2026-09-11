@@ -104,7 +104,7 @@ export async function searchMovie(query: string, year?: number): Promise<TmdbMov
   if (year) params.set('year', String(year));
   const res = await fetch(`${TMDB_BASE}/search/movie?${params.toString()}`, {
     headers: authHeaders(),
-    next: { revalidate: 60 * 60 * 24 },
+    next: { revalidate: 60 * 60 },
   });
   if (!res.ok) return null;
   const data = await res.json();
@@ -127,7 +127,7 @@ export async function getMovieDetails(id: number): Promise<TmdbMovieFull | null>
     `${TMDB_BASE}/movie/${id}?append_to_response=credits,watch/providers,videos,images,similar,recommendations,reviews&language=de-DE`,
     {
       headers: authHeaders(),
-      next: { revalidate: 60 * 60 * 24 },
+      next: { revalidate: 60 * 60 },
     }
   );
   if (!res.ok) return null;
@@ -137,7 +137,7 @@ export async function getMovieDetails(id: number): Promise<TmdbMovieFull | null>
 export async function getPersonDetails(id: number): Promise<TmdbPerson | null> {
   const res = await fetch(
     `${TMDB_BASE}/person/${id}?append_to_response=combined_credits&language=de-DE`,
-    { headers: authHeaders(), next: { revalidate: 60 * 60 * 24 } }
+    { headers: authHeaders(), next: { revalidate: 60 * 60 } }
   );
   if (!res.ok) return null;
   return res.json();

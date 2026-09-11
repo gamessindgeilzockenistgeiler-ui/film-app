@@ -16,7 +16,7 @@ export default function MovieCard({
   movie: Movie;
   onToggleWatched: (movie: Movie) => void;
   onDeleteMovie?: (movie: Movie) => void;
-  onRateMovie: (movie: Movie, rating: number) => void;
+  onRateMovie: (movie: Movie, rating: number | null) => void;
   onSelectMovie: () => void;
 }) {
   const poster = posterUrl(movie.poster_path, 'w500');
@@ -128,7 +128,7 @@ export default function MovieCard({
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
-                  onRateMovie(movie, rating);
+                  onRateMovie(movie, movie.user_rating === rating ? null : rating);
                 }}
                 disabled={isUpcoming}
                 aria-label={`${rating} von 10 für ${movie.title}`}
@@ -144,6 +144,19 @@ export default function MovieCard({
               </button>
             ))}
           </div>
+          {movie.user_rating && !isUpcoming && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRateMovie(movie, null);
+              }}
+              className="mt-2 text-[11px] text-cinema-muted transition-colors hover:text-white"
+            >
+              Bewertung löschen
+            </button>
+          )}
         </div>
 
         <p className="line-clamp-3 text-xs leading-relaxed text-cinema-muted">

@@ -3,7 +3,7 @@ import { CLASSICS } from '@/lib/classics';
 import { searchMovie, getMovieDetails, extractDirector, extractYear } from '@/lib/tmdb';
 import type { Movie } from '@/lib/types';
 
-export const revalidate = 86400; // 24h Cache
+export const revalidate = 3600; // 1h Cache, damit geänderte Kinostarts zeitnah ankommen
 
 export async function GET() {
   try {

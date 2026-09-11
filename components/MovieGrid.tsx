@@ -42,6 +42,12 @@ export default function MovieGrid({ session }: { session: Session | null }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('title');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [, setClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    const refreshClock = window.setInterval(() => setClock(Date.now()), 60 * 1000);
+    return () => window.clearInterval(refreshClock);
+  }, []);
 
   useEffect(() => {
     try {
@@ -208,7 +214,7 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     for (let attempt = 0; result.error && attempt < 4; attempt += 1) {
       const missingColumn = result.error.message.match(/Could not find the ['"]([^'"]+)['"] column/i)?.[1]
         ?? result.error.message.match(/(?:column|field) ['"]?([a-z_]+)['"]?/i)?.[1];
-      const knownColumns = ['release_date', 'vote_average', 'vote_count', 'user_rating'];
+      const knownColumns = ['release_date', 'vote_average', 'vote_count'];
       const schemaCacheError = result.error.code === 'PGRST204' || result.error.message.includes('schema cache');
 
       if (!schemaCacheError || !missingColumn || !knownColumns.includes(missingColumn)) break;
@@ -262,8 +268,8 @@ export default function MovieGrid({ session }: { session: Session | null }) {
     }
   };
 
-  const handleRateMovie = async (movie: Movie, rating: number) => {
-    if (isUpcomingMovie(movie)) {
+  const handleRateMovie = async (movie: Movie, rating: number | null) => {
+    if (isUpcomingMovie(movie) && rating !== null) {
       setErrorMsg('Dieser Film ist noch nicht erschienen und kann noch nicht bewertet werden.');
       return;
     }

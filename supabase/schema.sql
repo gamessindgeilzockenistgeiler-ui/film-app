@@ -113,7 +113,10 @@ as $$
   from public.user_movies
   where tmdb_id = p_tmdb_id
     and user_rating is not null
-    and (release_date is null or release_date <= current_date);
+    and (
+      release_date <= current_date
+      or (release_date is null and release_year < extract(year from current_date)::integer)
+    );
 $$;
 
 revoke all on function public.get_movie_rating_summary(integer) from public;
